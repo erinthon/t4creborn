@@ -18,7 +18,8 @@ public class T4CReborn : ModuleRules
 			"Engine",
 			"InputCore",
 			"NetCore",
-			"UMG"
+			"UMG",
+			"AIModule"
 		});
 
 		PrivateDependencyModuleNames.AddRange(new string[]

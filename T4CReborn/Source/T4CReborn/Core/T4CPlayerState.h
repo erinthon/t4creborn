@@ -30,6 +30,12 @@ public:
 	UFUNCTION(BlueprintPure, Category = "T4C|Progression")
 	int32 GetUnspentStatPoints() const { return UnspentStatPoints; }
 
+	UFUNCTION(BlueprintPure, Category = "T4C|Progression")
+	int32 GetUnspentSkillPoints() const { return UnspentSkillPoints; }
+
+	UFUNCTION(BlueprintPure, Category = "T4C|Progression")
+	int32 GetExperience() const { return Experience; }
+
 	/** Servidor: concede XP e processa level-ups. */
 	void GrantExperience(int32 Amount);
 

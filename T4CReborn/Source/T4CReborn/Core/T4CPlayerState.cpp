@@ -52,6 +52,9 @@ void AT4CPlayerState::LevelUp()
 	UnspentStatPoints += StatPointsPerLevel;
 	UnspentSkillPoints += SkillPointsPerLevel;
 
+	UE_LOG(LogTemp, Display, TEXT("[T4C] %s subiu para o nivel %d (+%d atributo / +%d pericia)"),
+		*GetPlayerName(), CharacterLevel, StatPointsPerLevel, SkillPointsPerLevel);
+
 	// HP é concedido no level-up conforme END atual (fiel ao T4C).
 	PushDerivedStatsToPawn(/*bRefill=*/false);
 }

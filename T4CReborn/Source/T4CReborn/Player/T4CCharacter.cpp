@@ -79,6 +79,21 @@ void AT4CCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCompon
 	PlayerInputComponent->BindAxis(TEXT("Turn"), this, &AT4CCharacter::Turn);
 	PlayerInputComponent->BindAxis(TEXT("LookUp"), this, &AT4CCharacter::LookUpAt);
 	PlayerInputComponent->BindAction(TEXT("Attack"), IE_Pressed, this, &AT4CCharacter::Attack);
+
+	PlayerInputComponent->BindAction(TEXT("AllocStr"), IE_Pressed, this, &AT4CCharacter::AllocStrength);
+	PlayerInputComponent->BindAction(TEXT("AllocEnd"), IE_Pressed, this, &AT4CCharacter::AllocEndurance);
+	PlayerInputComponent->BindAction(TEXT("AllocAgi"), IE_Pressed, this, &AT4CCharacter::AllocAgility);
+	PlayerInputComponent->BindAction(TEXT("AllocInt"), IE_Pressed, this, &AT4CCharacter::AllocIntelligence);
+	PlayerInputComponent->BindAction(TEXT("AllocWis"), IE_Pressed, this, &AT4CCharacter::AllocWisdom);
+}
+
+void AT4CCharacter::AllocateStat(ET4CAttribute Attribute)
+{
+	// Encaminha ao servidor (RPC no PlayerState, que valida pontos disponíveis).
+	if (AT4CPlayerState* PS = GetPlayerState<AT4CPlayerState>())
+	{
+		PS->ServerAllocateStat(Attribute);
+	}
 }
 
 void AT4CCharacter::MoveForward(float Value)

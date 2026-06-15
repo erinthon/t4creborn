@@ -40,6 +40,12 @@ public:
 	UFUNCTION(BlueprintPure, Category = "T4C|Attributes")
 	float GetMaxHealth() const { return MaxHealth; }
 
+	UFUNCTION(BlueprintPure, Category = "T4C|Attributes")
+	float GetMana() const { return Mana; }
+
+	UFUNCTION(BlueprintPure, Category = "T4C|Attributes")
+	float GetMaxMana() const { return MaxMana; }
+
 	UPROPERTY(BlueprintAssignable, Category = "T4C|Attributes")
 	FOnHealthChanged OnHealthChanged;
 

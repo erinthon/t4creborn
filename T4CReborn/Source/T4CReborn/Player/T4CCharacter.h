@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Character.h"
+#include "Attributes/T4CAttributeData.h"
 #include "T4CCharacter.generated.h"
 
 class UT4CAttributeComponent;
@@ -49,6 +50,14 @@ protected:
 	void Turn(float Value);
 	void LookUpAt(float Value);
 	void Attack();
+
+	// Distribuição de pontos de atributo (teclas 1-5).
+	void AllocateStat(ET4CAttribute Attribute);
+	void AllocStrength()     { AllocateStat(ET4CAttribute::Strength); }
+	void AllocEndurance()    { AllocateStat(ET4CAttribute::Endurance); }
+	void AllocAgility()      { AllocateStat(ET4CAttribute::Agility); }
+	void AllocIntelligence() { AllocateStat(ET4CAttribute::Intelligence); }
+	void AllocWisdom()       { AllocateStat(ET4CAttribute::Wisdom); }
 
 	/** Alcance do ataque melee em cm. */
 	UPROPERTY(EditDefaultsOnly, Category = "Combat")
