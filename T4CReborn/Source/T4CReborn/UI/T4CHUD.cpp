@@ -141,9 +141,39 @@ void AT4CHUD::DrawHUD()
 		DrawRect(FLinearColor(0.9f, 0.15f, 0.15f, 1.f), MX, MY, MBarW * FMath::Clamp(MPct, 0.f, 1.f), MBarH);
 	}
 
+	// --- Barra de habilidades (Q / E) no centro inferior ---
+	{
+		const TCHAR* Keys[2] = { TEXT("Q"), TEXT("E") };
+		const float SlotW = 150.f;
+		const float SlotH = 40.f;
+		const float Gap = 16.f;
+		const float TotalW = SlotW * 2.f + Gap;
+		float SX = (W - TotalW) * 0.5f;
+		const float SY = H - 64.f;
+
+		for (int32 i = 0; i < 2; ++i)
+		{
+			const FString AbName = Char->GetAbilityName(i);
+			const float CD = Char->GetAbilityCooldownRemaining(i);
+			const bool bReady = CD <= 0.01f;
+
+			DrawRect(FLinearColor(0.f, 0.f, 0.f, 0.6f), SX - 2.f, SY - 2.f, SlotW + 4.f, SlotH + 4.f);
+			DrawRect(bReady ? FLinearColor(0.12f, 0.18f, 0.12f, 0.9f) : FLinearColor(0.25f, 0.12f, 0.12f, 0.9f),
+				SX, SY, SlotW, SlotH);
+
+			DrawText(FString::Printf(TEXT("[%s] %s"), Keys[i], *AbName),
+				bReady ? White : Dim, SX + 8.f, SY + 4.f, nullptr, 1.0f);
+			if (!bReady)
+			{
+				DrawText(FString::Printf(TEXT("%.1fs"), CD), Gold, SX + 8.f, SY + 22.f, nullptr, 1.0f);
+			}
+			SX += SlotW + Gap;
+		}
+	}
+
 	// --- Dica de controles (canto inferior direito) ---
-	DrawText(TEXT("WASD mover | Mouse olhar | LMB/Espaco atacar"),
-		FLinearColor(0.8f, 0.8f, 0.8f, 1.f), W - 470.f, H - 34.f, nullptr, 1.0f);
+	DrawText(TEXT("WASD mover | Mouse olhar | LMB atacar | Q/E habilidades"),
+		FLinearColor(0.8f, 0.8f, 0.8f, 1.f), W - 540.f, H - 24.f, nullptr, 1.0f);
 }
 
 void AT4CHUD::DrawBar(float X, float Y, float W, float H, float Pct,

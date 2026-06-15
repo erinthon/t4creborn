@@ -31,6 +31,15 @@ public:
 	/** Aplica dano ao alvo. Retorna o dano efetivamente aplicado. Servidor apenas. */
 	float ApplyDamage(float RawDamage, AActor* InstigatorActor);
 
+	/** Servidor: gasta mana se houver o suficiente. Retorna true se gastou. */
+	bool SpendMana(float Amount);
+
+	/** Servidor: restaura vida (até o máximo). */
+	void Heal(float Amount);
+
+	/** Servidor: ativa redução de dano por um tempo (Parry). Fraction 0..1. */
+	void ApplyTempDamageReduction(float Fraction, float Duration);
+
 	UFUNCTION(BlueprintPure, Category = "T4C|Attributes")
 	bool IsAlive() const { return Health > 0.f; }
 
@@ -77,4 +86,6 @@ protected:
 
 private:
 	bool bIsDead = false;
+	float DamageReductionFraction = 0.f;
+	float DamageReductionExpiry = 0.f;
 };

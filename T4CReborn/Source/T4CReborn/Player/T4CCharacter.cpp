@@ -1,5 +1,6 @@
 #include "Player/T4CCharacter.h"
 #include "Attributes/T4CAttributeComponent.h"
+#include "Attributes/T4CAbilityData.h"
 #include "Combat/T4CProjectile.h"
 #include "Core/T4CPlayerState.h"
 #include "GameFramework/SpringArmComponent.h"
@@ -101,6 +102,10 @@ void AT4CCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCompon
 	PlayerInputComponent->BindAction(TEXT("Slot6"), IE_Pressed, this, &AT4CCharacter::SelectClass5);
 	PlayerInputComponent->BindAction(TEXT("Slot7"), IE_Pressed, this, &AT4CCharacter::SelectClass6);
 	PlayerInputComponent->BindAction(TEXT("Slot8"), IE_Pressed, this, &AT4CCharacter::SelectClass7);
+
+	// Habilidades de classe: Q (slot 0) e E (slot 1).
+	PlayerInputComponent->BindAction(TEXT("Ability1"), IE_Pressed, this, &AT4CCharacter::UseAbility0);
+	PlayerInputComponent->BindAction(TEXT("Ability2"), IE_Pressed, this, &AT4CCharacter::UseAbility1);
 }
 
 void AT4CCharacter::AllocateStat(ET4CAttribute Attribute)
@@ -183,13 +188,24 @@ void AT4CCharacter::ServerAttack_Implementation()
 		return;
 	}
 
-	// Dano = ArmaBase * (1 + STR * DamagePerStrength)   (GDD seção 2)
-	float StrMultiplier = 1.f;
+	// Dano = ArmaBase * (1 + atributo ofensivo * DamagePerStrength)
+	float OffenseMul = 1.f;
 	if (const AT4CPlayerState* PS = GetPlayerState<AT4CPlayerState>())
 	{
-		StrMultiplier = 1.f + PS->GetPrimaryStats().Strength * AttributeComponent->Balance.DamagePerStrength;
+		const FT4CPrimaryStats& S = PS->GetPrimaryStats();
+		const int32 Offense = FMath::Max(S.Strength, S.Intelligence);
+		OffenseMul = 1.f + Offense * AttributeComponent->Balance.DamagePerStrength;
 	}
-	const float Damage = BaseWeaponDamage * StrMultiplier;
+
+	SpawnAttackProjectile(BaseWeaponDamage * OffenseMul);
+}
+
+void AT4CCharacter::SpawnAttackProjectile(float Damage)
+{
+	if (!ProjectileClass)
+	{
+		return;
+	}
 
 	// Dispara na direção em que o jogador mira (rotação de controle), saindo
 	// um pouco à frente da cápsula.
@@ -206,6 +222,94 @@ void AT4CCharacter::ServerAttack_Implementation()
 	{
 		Projectile->SetDamage(Damage);
 	}
+}
+
+void AT4CCharacter::UseAbility(int32 Slot)
+{
+	// Predição local do cooldown para feedback imediato no HUD.
+	if (Slot >= 0 && Slot <= 1 && GetWorld())
+	{
+		LastAbilityTime[Slot] = GetWorld()->GetTimeSeconds();
+	}
+	ServerUseAbility(Slot);
+}
+
+void AT4CCharacter::ServerUseAbility_Implementation(int32 Slot)
+{
+	if (Slot < 0 || Slot > 1 || !AttributeComponent || !AttributeComponent->IsAlive())
+	{
+		return;
+	}
+
+	const AT4CPlayerState* PS = GetPlayerState<AT4CPlayerState>();
+	if (!PS || !PS->HasChosenClass())
+	{
+		return;
+	}
+
+	const FT4CAbility Ability = T4CAbilities::Get(PS->GetChosenClass(), Slot);
+
+	// Cooldown.
+	const float Now = GetWorld()->GetTimeSeconds();
+	if (Now - LastAbilityTime[Slot] < Ability.Cooldown)
+	{
+		return;
+	}
+
+	// Custo de mana.
+	if (!AttributeComponent->SpendMana(Ability.ManaCost))
+	{
+		return;
+	}
+
+	LastAbilityTime[Slot] = Now;
+
+	const FT4CPrimaryStats& S = PS->GetPrimaryStats();
+	switch (Ability.Kind)
+	{
+	case ET4CAbilityKind::Projectile:
+	{
+		const int32 Offense = FMath::Max(S.Strength, S.Intelligence);
+		const float OffenseMul = 1.f + Offense * AttributeComponent->Balance.DamagePerStrength;
+		SpawnAttackProjectile(BaseWeaponDamage * OffenseMul * Ability.Power);
+		break;
+	}
+	case ET4CAbilityKind::Heal:
+		AttributeComponent->Heal(Ability.Power + S.Wisdom * 1.5f);
+		break;
+
+	case ET4CAbilityKind::Parry:
+		AttributeComponent->ApplyTempDamageReduction(Ability.Power, Ability.Duration);
+		break;
+	}
+}
+
+FString AT4CCharacter::GetAbilityName(int32 Slot) const
+{
+	if (const AT4CPlayerState* PS = GetPlayerState<AT4CPlayerState>())
+	{
+		if (PS->HasChosenClass())
+		{
+			return T4CAbilities::Get(PS->GetChosenClass(), Slot).Name;
+		}
+	}
+	return FString();
+}
+
+float AT4CCharacter::GetAbilityCooldownRemaining(int32 Slot) const
+{
+	if (Slot < 0 || Slot > 1 || !GetWorld())
+	{
+		return 0.f;
+	}
+	const AT4CPlayerState* PS = GetPlayerState<AT4CPlayerState>();
+	if (!PS || !PS->HasChosenClass())
+	{
+		return 0.f;
+	}
+	const FT4CAbility Ability = T4CAbilities::Get(PS->GetChosenClass(), Slot);
+	const float Remaining = Ability.Cooldown - (GetWorld()->GetTimeSeconds() - LastAbilityTime[Slot]);
+	return FMath::Max(0.f, Remaining);
 }
 
 void AT4CCharacter::HandleDeath(AActor* Killer)

@@ -57,6 +57,12 @@ float UT4CAttributeComponent::ApplyDamage(float RawDamage, AActor* InstigatorAct
 		return 0.f;
 	}
 
+	// Parry: reduz o dano enquanto ativo.
+	if (GetWorld() && GetWorld()->GetTimeSeconds() < DamageReductionExpiry)
+	{
+		RawDamage *= (1.f - DamageReductionFraction);
+	}
+
 	const float OldHealth = Health;
 	Health = FMath::Clamp(Health - RawDamage, 0.f, MaxHealth);
 	const float ActualDamage = OldHealth - Health;
@@ -70,6 +76,40 @@ float UT4CAttributeComponent::ApplyDamage(float RawDamage, AActor* InstigatorAct
 	}
 
 	return ActualDamage;
+}
+
+bool UT4CAttributeComponent::SpendMana(float Amount)
+{
+	if (GetOwnerRole() != ROLE_Authority || Amount <= 0.f)
+	{
+		return true; // habilidades sem custo
+	}
+	if (Mana < Amount)
+	{
+		return false;
+	}
+	Mana = FMath::Clamp(Mana - Amount, 0.f, MaxMana);
+	return true;
+}
+
+void UT4CAttributeComponent::Heal(float Amount)
+{
+	if (GetOwnerRole() != ROLE_Authority || Amount <= 0.f || bIsDead)
+	{
+		return;
+	}
+	Health = FMath::Clamp(Health + Amount, 0.f, MaxHealth);
+	OnHealthChanged.Broadcast(this, Health, MaxHealth, GetOwner());
+}
+
+void UT4CAttributeComponent::ApplyTempDamageReduction(float Fraction, float Duration)
+{
+	if (GetOwnerRole() != ROLE_Authority)
+	{
+		return;
+	}
+	DamageReductionFraction = FMath::Clamp(Fraction, 0.f, 0.95f);
+	DamageReductionExpiry = (GetWorld() ? GetWorld()->GetTimeSeconds() : 0.f) + Duration;
 }
 
 void UT4CAttributeComponent::OnRep_Health(float OldHealth)

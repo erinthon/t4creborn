@@ -86,6 +86,25 @@ protected:
 	UFUNCTION(Server, Reliable)
 	void ServerAttack();
 
+	// Habilidades de classe (Q = slot 0, E = slot 1).
+	void UseAbility0() { UseAbility(0); }
+	void UseAbility1() { UseAbility(1); }
+	void UseAbility(int32 Slot);
+
+	UFUNCTION(Server, Reliable)
+	void ServerUseAbility(int32 Slot);
+
+public:
+	/** Para o HUD: nome da habilidade no slot (0=Q, 1=E). */
+	FString GetAbilityName(int32 Slot) const;
+
+	/** Para o HUD: segundos de cooldown restantes no slot (0 = pronto). */
+	float GetAbilityCooldownRemaining(int32 Slot) const;
+
+protected:
+	/** Servidor: dispara um projétil para frente com o dano dado. */
+	void SpawnAttackProjectile(float Damage);
+
 	/** Servidor: reage à morte deste personagem. */
 	UFUNCTION()
 	void HandleDeath(AActor* Killer);
@@ -93,4 +112,5 @@ protected:
 private:
 	bool bDeadHandled = false;
 	float LastAttackTime = -100.f;
+	float LastAbilityTime[2] = { -100.f, -100.f };
 };
