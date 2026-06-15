@@ -2,10 +2,10 @@
 #include "Attributes/T4CAbilityData.h"
 #include "Combat/T4CProjectile.h"
 #include "Core/T4CPlayerState.h"
-#include "GAS/T4CAbilitySystemComponent.h"
 #include "GAS/T4CAttributeSet.h"
 #include "GAS/T4CGameplayTags.h"
-#include "GAS/Effects/T4CGameplayEffects.h"
+#include "GAS/T4CAbilityInputID.h"
+#include "AbilitySystemComponent.h"
 #include "Items/T4CInventoryComponent.h"
 #include "Items/T4CLootPickup.h"
 #include "EngineUtils.h"
@@ -147,9 +147,9 @@ void AT4CCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCompon
 	PlayerInputComponent->BindAction(TEXT("Slot7"), IE_Pressed, this, &AT4CCharacter::SelectClass6);
 	PlayerInputComponent->BindAction(TEXT("Slot8"), IE_Pressed, this, &AT4CCharacter::SelectClass7);
 
-	// Habilidades de classe: Q (slot 0) e E (slot 1).
-	PlayerInputComponent->BindAction(TEXT("Ability1"), IE_Pressed, this, &AT4CCharacter::UseAbility0);
-	PlayerInputComponent->BindAction(TEXT("Ability2"), IE_Pressed, this, &AT4CCharacter::UseAbility1);
+	// Habilidades de classe: Q (slot 0) e E (slot 1). Ativam pelo InputID no ASC.
+	PlayerInputComponent->BindAction(TEXT("Ability1"), IE_Pressed, this, &AT4CCharacter::OnAbilityQPressed);
+	PlayerInputComponent->BindAction(TEXT("Ability2"), IE_Pressed, this, &AT4CCharacter::OnAbilityEPressed);
 
 	// Recomeçar / trocar de classe (tecla R).
 	PlayerInputComponent->BindAction(TEXT("ResetClass"), IE_Pressed, this, &AT4CCharacter::ResetClass);
@@ -306,100 +306,19 @@ void AT4CCharacter::SpawnAttackProjectile(float Damage, FLinearColor Color, floa
 	}
 }
 
-void AT4CCharacter::UseAbility(int32 Slot)
+void AT4CCharacter::OnAbilityQPressed()
 {
-	// Predição local de cooldown SÓ no cliente remoto. No host (autoridade) o
-	// servidor cuida — predizer aqui faria o próprio check do servidor bloquear.
-	if (!HasAuthority() && Slot >= 0 && Slot <= 1 && GetWorld())
+	if (UAbilitySystemComponent* ASC = GetAbilitySystemComponent())
 	{
-		LastAbilityTime[Slot] = GetWorld()->GetTimeSeconds();
-	}
-	ServerUseAbility(Slot);
-}
-
-// Helper: aplica a si mesmo um GE com uma magnitude SetByCaller.
-static void ApplySelfGEWithMagnitude(UAbilitySystemComponent* ASC,
-	TSubclassOf<UGameplayEffect> EffectClass, FGameplayTag DataTag, float Magnitude)
-{
-	if (!ASC || !EffectClass)
-	{
-		return;
-	}
-	FGameplayEffectContextHandle Ctx = ASC->MakeEffectContext();
-	Ctx.AddSourceObject(ASC->GetOwner());
-	FGameplayEffectSpecHandle Spec = ASC->MakeOutgoingSpec(EffectClass, 1.f, Ctx);
-	if (Spec.IsValid())
-	{
-		Spec.Data->SetSetByCallerMagnitude(DataTag, Magnitude);
-		ASC->ApplyGameplayEffectSpecToSelf(*Spec.Data);
+		ASC->AbilityLocalInputPressed(static_cast<int32>(ET4CAbilityInputID::AbilityQ));
 	}
 }
 
-void AT4CCharacter::ServerUseAbility_Implementation(int32 Slot)
+void AT4CCharacter::OnAbilityEPressed()
 {
-	if (Slot < 0 || Slot > 1 || !IsAlive())
+	if (UAbilitySystemComponent* ASC = GetAbilitySystemComponent())
 	{
-		return;
-	}
-
-	const AT4CPlayerState* PS = GetPlayerState<AT4CPlayerState>();
-	UAbilitySystemComponent* ASC = GetAbilitySystemComponent();
-	UT4CAttributeSet* Set = GetAttributeSet();
-	if (!PS || !PS->HasChosenClass() || !ASC || !Set)
-	{
-		return;
-	}
-
-	const FT4CAbility Ability = T4CAbilities::Get(PS->GetChosenClass(), Slot);
-
-	// Cooldown (ainda manual no Estágio 1; vira GE de cooldown no Estágio 2).
-	const float Now = GetWorld()->GetTimeSeconds();
-	if (Now - LastAbilityTime[Slot] < Ability.Cooldown)
-	{
-		return;
-	}
-	// Custo de mana: checa e gasta via GE_Cost (valor negativo).
-	if (Ability.ManaCost > 0.f)
-	{
-		if (Set->GetMana() < Ability.ManaCost)
-		{
-			return;
-		}
-		ApplySelfGEWithMagnitude(ASC, UGE_Cost::StaticClass(), T4CTags::Data_ManaCost, -Ability.ManaCost);
-	}
-	LastAbilityTime[Slot] = Now;
-
-	const FT4CPrimaryStats& S = PS->GetPrimaryStats();
-	switch (Ability.Kind)
-	{
-	case ET4CAbilityKind::Projectile:
-	{
-		// Dano escala com o melhor atributo ofensivo (STR/INT/WIS).
-		const int32 Offense = FMath::Max3(S.Strength, S.Intelligence, S.Wisdom);
-		const FT4CBalanceConstants Balance;
-		const float OffenseMul = 1.f + Offense * Balance.DamagePerStrength;
-
-		// Cor por elemento/perícia.
-		FLinearColor Color(0.9f, 0.9f, 1.0f); // físico: branco-aço
-		if (Ability.Name.Contains(TEXT("Fire")))            Color = FLinearColor(1.0f, 0.35f, 0.05f);
-		else if (Ability.Name.Contains(TEXT("Smite")))      Color = FLinearColor(1.0f, 0.85f, 0.25f);
-		else if (Ability.Name.Contains(TEXT("Backstab")))   Color = FLinearColor(0.6f, 0.1f, 0.85f);
-		else if (Ability.Name.Contains(TEXT("Power Shot"))) Color = FLinearColor(0.3f, 1.0f, 0.35f);
-		const float Scale = 0.35f + Ability.Power * 0.12f;
-
-		// A arma equipada (atributo WeaponDamageBonus) soma ao dano base.
-		const float WeaponBase = BaseWeaponDamage + Set->GetWeaponDamageBonus();
-		SpawnAttackProjectile(WeaponBase * OffenseMul * Ability.Power, Color, Scale);
-		break;
-	}
-	case ET4CAbilityKind::Heal:
-		ApplySelfGEWithMagnitude(ASC, UGE_Heal::StaticClass(), T4CTags::Data_Healing,
-			Ability.Power + S.Wisdom * 1.5f);
-		break;
-
-	case ET4CAbilityKind::Parry:
-		ApplySelfGEWithMagnitude(ASC, UGE_Parry::StaticClass(), T4CTags::Data_Duration, Ability.Duration);
-		break;
+		ASC->AbilityLocalInputPressed(static_cast<int32>(ET4CAbilityInputID::AbilityE));
 	}
 }
 
@@ -417,18 +336,20 @@ FString AT4CCharacter::GetAbilityName(int32 Slot) const
 
 float AT4CCharacter::GetAbilityCooldownRemaining(int32 Slot) const
 {
-	if (Slot < 0 || Slot > 1 || !GetWorld())
+	UAbilitySystemComponent* ASC = GetAbilitySystemComponent();
+	if (Slot < 0 || Slot > 1 || !ASC)
 	{
 		return 0.f;
 	}
-	const AT4CPlayerState* PS = GetPlayerState<AT4CPlayerState>();
-	if (!PS || !PS->HasChosenClass())
+	// Consulta o GE de cooldown ativo que carrega a tag do slot (replicado ao dono).
+	const FGameplayTag CDTag = (Slot == 1) ? T4CTags::Cooldown_E : T4CTags::Cooldown_Q;
+	const FGameplayEffectQuery Query = FGameplayEffectQuery::MakeQuery_MatchAnyOwningTags(FGameplayTagContainer(CDTag));
+	float Remaining = 0.f;
+	for (const float Time : ASC->GetActiveEffectsTimeRemaining(Query))
 	{
-		return 0.f;
+		Remaining = FMath::Max(Remaining, Time);
 	}
-	const FT4CAbility Ability = T4CAbilities::Get(PS->GetChosenClass(), Slot);
-	const float Remaining = Ability.Cooldown - (GetWorld()->GetTimeSeconds() - LastAbilityTime[Slot]);
-	return FMath::Max(0.f, Remaining);
+	return Remaining;
 }
 
 void AT4CCharacter::HandleDeath(AActor* Killer)

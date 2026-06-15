@@ -3,6 +3,7 @@
 #include "CoreMinimal.h"
 #include "GameFramework/PlayerState.h"
 #include "AbilitySystemInterface.h"
+#include "GameplayAbilitySpecHandle.h"
 #include "Attributes/T4CAttributeData.h"
 #include "Attributes/T4CClassData.h"
 #include "T4CPlayerState.generated.h"
@@ -126,6 +127,15 @@ protected:
 
 	/** Servidor: empurra os atributos primários ao ASC; opcionalmente enche vitais. */
 	void PushStatsToASC(bool bRefill);
+
+	/** Servidor: concede ao ASC as 2 habilidades (Q/E) da classe escolhida. */
+	void GrantClassAbilities();
+
+	/** Servidor: remove as habilidades concedidas (ao recomeçar). */
+	void ClearAbilities();
+
+	/** Handles das habilidades concedidas (server-only, não replicado). */
+	TArray<FGameplayAbilitySpecHandle> GrantedAbilities;
 
 	// Pontos concedidos por nível — espelham FT4CBalanceConstants.
 	static constexpr int32 StatPointsPerLevel = 5;

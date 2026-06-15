@@ -57,3 +57,13 @@ class T4CREBORN_API UGE_Parry : public UGameplayEffect
 public:
 	UGE_Parry();
 };
+
+/** Duração (SetByCaller Data.Duration): cooldown puro. A tag de cooldown do slot
+ *  é adicionada dinamicamente no ApplyCooldown da habilidade. */
+UCLASS()
+class T4CREBORN_API UGE_Cooldown : public UGameplayEffect
+{
+	GENERATED_BODY()
+public:
+	UGE_Cooldown();
+};

@@ -39,9 +39,23 @@ Tudo em C++ puro (sem Blueprint), mantendo a convenção do projeto.
   - *Simplificações temporárias (refinar nos próximos estágios):* cooldown ainda é manual
     (`LastAbilityTime`); equipamento aplica `SetNumericAttributeBase` direto (vira GE no Est. 3);
     Parry virou +Armadura plana temporária (era redução fracionária).
-- **Estágio 2 — Habilidades**: Q/E viram GameplayAbilities; custo/cooldown via GEs;
-  input por `AbilityInputID`.
-- **Estágio 3 — Equipamento & limpeza**: bônus via GEs; remove código morto; docs/memória.
+- **Estágio 2 — Habilidades** ✅: Q/E viram `UGameplayAbility` (`UGA_ProjectileAttack`/
+  `UGA_Heal`/`UGA_Parry`, base `UT4CGameplayAbility` data-driven por `T4CAbilities::Get`).
+  Custo via `GE_Cost`, cooldown via `GE_Cooldown` (SetByCaller duração + tag de slot
+  dinâmica); `CheckCost/ApplyCost/CheckCooldown/ApplyCooldown` sobrescritos. Concedidas por
+  classe no `ServerSelectClass` (InputID por slot); input ativa via
+  `ASC->AbilityLocalInputPressed`. NetExecutionPolicy = ServerOnly (predição fica p/ depois).
+  HUD de cooldown lê `GetActiveEffectsTimeRemaining` no ASC. Verificado por harness de
+  auto-teste (`-T4CAutoTest` no GameMode): Fire Dart/FireStorm disparam com dano correto,
+  cooldown bloqueia o 2º press, custo+regen de mana corretos, sem erros.
+- **Estágio 3 — Equipamento & limpeza**: bônus via GEs; Parry fracionário; remove código
+  morto; docs/memória.
+
+## Ferramentas
+
+- **Auto-teste headless** (`-T4CAutoTest`): `AT4CGameMode` escolhe Mago para cada jogador e
+  usa Q/E periodicamente — permite verificar o pipeline de combate sem input manual (o input
+  por foco de janela é intermitente). Combine com `-LogCmds="LogTemp Verbose"`.
 
 ## Armadilhas conhecidas
 

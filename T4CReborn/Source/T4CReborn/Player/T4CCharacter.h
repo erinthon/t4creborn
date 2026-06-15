@@ -92,13 +92,10 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = "Combat")
 	TSubclassOf<class AT4CProjectile> ProjectileClass;
 
-	// Habilidades de classe (Q = slot 0, E = slot 1).
-	void UseAbility0() { UseAbility(0); }
-	void UseAbility1() { UseAbility(1); }
-	void UseAbility(int32 Slot);
-
-	UFUNCTION(Server, Reliable)
-	void ServerUseAbility(int32 Slot);
+	// Habilidades de classe via GAS: a tecla ativa pelo InputID no ASC; a
+	// GameplayAbility concedida pela classe trata custo/cooldown/efeito.
+	void OnAbilityQPressed();
+	void OnAbilityEPressed();
 
 	// --- Loot / inventário ---
 	/** Tecla F: coleta o saco de loot mais próximo dentro do alcance. */
@@ -117,8 +114,15 @@ public:
 	/** Para o HUD: nome da habilidade no slot (0=Q, 1=E). */
 	FString GetAbilityName(int32 Slot) const;
 
-	/** Para o HUD: segundos de cooldown restantes no slot (0 = pronto). */
+	/** Para o HUD: segundos de cooldown restantes no slot (0 = pronto). Lê o GE
+	 *  de cooldown no ASC (replicado ao dono). */
 	float GetAbilityCooldownRemaining(int32 Slot) const;
+
+	/** Dano base das habilidades de projétil (lido pela GameplayAbility). */
+	float GetBaseWeaponDamage() const { return BaseWeaponDamage; }
+
+	/** Servidor: dispara o projétil de ataque (chamado pela GameplayAbility). */
+	void FireAbilityProjectile(float Damage, FLinearColor Color, float Scale) { SpawnAttackProjectile(Damage, Color, Scale); }
 
 protected:
 	/** Servidor: dispara um projétil para frente, com dano, cor e tamanho. */
@@ -126,5 +130,4 @@ protected:
 
 private:
 	bool bDeadHandled = false;
-	float LastAbilityTime[2] = { -100.f, -100.f };
 };

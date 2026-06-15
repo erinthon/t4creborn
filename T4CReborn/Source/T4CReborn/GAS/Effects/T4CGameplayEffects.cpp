@@ -101,3 +101,14 @@ UGE_Parry::UGE_Parry()
 	ArmorMod.ModifierMagnitude = FGameplayEffectModifierMagnitude(FScalableFloat(30.f));
 	Modifiers.Add(ArmorMod);
 }
+
+UGE_Cooldown::UGE_Cooldown()
+{
+	DurationPolicy = EGameplayEffectDurationType::HasDuration;
+
+	FSetByCallerFloat DurSBC;
+	DurSBC.DataTag = T4CTags::Data_Duration;
+	DurationMagnitude = FGameplayEffectModifierMagnitude(DurSBC);
+	// Sem modificadores: é só um "timer" tagueado. A tag do slot é adicionada
+	// dinamicamente (Spec.DynamicGrantedTags) pela habilidade no ApplyCooldown.
+}

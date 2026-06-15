@@ -6,6 +6,11 @@
 #include "AI/T4CMonster.h"
 #include "Items/T4CLootPickup.h"
 #include "Items/T4CItemData.h"
+#include "GAS/T4CAttributeSet.h"
+#include "GAS/T4CAbilityInputID.h"
+#include "GAS/T4CGameplayTags.h"
+#include "Attributes/T4CClassData.h"
+#include "AbilitySystemComponent.h"
 #include "UI/T4CHUD.h"
 #include "TimerManager.h"
 #include "GameFramework/PlayerStart.h"
@@ -39,6 +44,53 @@ void AT4CGameMode::BeginPlay()
 	for (const FVector& Point : MonsterSpawnPoints)
 	{
 		SpawnMonster(Point);
+	}
+
+	bAutoTest = FParse::Param(FCommandLine::Get(), TEXT("T4CAutoTest"));
+	if (bAutoTest)
+	{
+		UE_LOG(LogTemp, Display, TEXT("[T4C][AutoTest] ativado"));
+		GetWorldTimerManager().SetTimer(AutoTestTimer, this, &AT4CGameMode::RunAutoTest, 2.0f, true, 3.0f);
+	}
+}
+
+void AT4CGameMode::RunAutoTest()
+{
+	++AutoTestTick;
+	for (FConstPlayerControllerIterator It = GetWorld()->GetPlayerControllerIterator(); It; ++It)
+	{
+		APlayerController* PC = It->Get();
+		AT4CPlayerState* PS = PC ? PC->GetPlayerState<AT4CPlayerState>() : nullptr;
+		if (!PS)
+		{
+			continue;
+		}
+
+		// 1) Garante uma classe com magias (Mago: Q=Fire Dart, E=FireStorm).
+		if (!PS->HasChosenClass())
+		{
+			PS->ServerSelectClass(ET4CClass::Mage);
+			UE_LOG(LogTemp, Display, TEXT("[T4C][AutoTest] %s -> classe Mago"), *PS->GetPlayerName());
+			continue;
+		}
+
+		// 2) Usa Q (e E a cada 3 ticks) via o mesmo caminho do input.
+		UAbilitySystemComponent* ASC = PS->GetAbilitySystemComponent();
+		const UT4CAttributeSet* Set = ASC ? ASC->GetSet<UT4CAttributeSet>() : nullptr;
+		if (ASC && Set)
+		{
+			// Pressiona Q duas vezes seguidas: a 2ª deve ser bloqueada pelo cooldown.
+			ASC->AbilityLocalInputPressed(static_cast<int32>(ET4CAbilityInputID::AbilityQ));
+			ASC->AbilityLocalInputPressed(static_cast<int32>(ET4CAbilityInputID::AbilityQ));
+			if (AutoTestTick % 3 == 0)
+			{
+				ASC->AbilityLocalInputPressed(static_cast<int32>(ET4CAbilityInputID::AbilityE));
+			}
+			UE_LOG(LogTemp, Display, TEXT("[T4C][AutoTest] %s Q x2 (Mana %.0f/%.0f, cdQ %.2fs)"),
+				*PS->GetPlayerName(), Set->GetMana(), Set->GetMaxMana(),
+				ASC->GetActiveEffectsTimeRemaining(FGameplayEffectQuery::MakeQuery_MatchAnyOwningTags(
+					FGameplayTagContainer(T4CTags::Cooldown_Q))).Num() > 0 ? 1.f : 0.f);
+		}
 	}
 }
 

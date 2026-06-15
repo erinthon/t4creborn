@@ -2,8 +2,29 @@
 #include "Player/T4CCharacter.h"
 #include "GAS/T4CAbilitySystemComponent.h"
 #include "GAS/T4CAttributeSet.h"
+#include "GAS/T4CAbilityInputID.h"
+#include "GAS/Abilities/GA_ProjectileAttack.h"
+#include "GAS/Abilities/GA_Heal.h"
+#include "GAS/Abilities/GA_Parry.h"
+#include "Attributes/T4CAbilityData.h"
 #include "Items/T4CInventoryComponent.h"
+#include "Abilities/GameplayAbility.h"
 #include "Net/UnrealNetwork.h"
+
+namespace
+{
+	// Classe de GameplayAbility correspondente a cada tipo de habilidade.
+	TSubclassOf<UGameplayAbility> AbilityClassForKind(ET4CAbilityKind Kind)
+	{
+		switch (Kind)
+		{
+		case ET4CAbilityKind::Heal:  return UGA_Heal::StaticClass();
+		case ET4CAbilityKind::Parry: return UGA_Parry::StaticClass();
+		case ET4CAbilityKind::Projectile:
+		default:                     return UGA_ProjectileAttack::StaticClass();
+		}
+	}
+}
 
 AT4CPlayerState::AT4CPlayerState()
 {
@@ -71,6 +92,7 @@ void AT4CPlayerState::ServerSelectClass_Implementation(ET4CClass Class)
 
 	// Recalcula HP/Mana com os atributos do roll e enche as barras.
 	PushStatsToASC(/*bRefill=*/true);
+	GrantClassAbilities();
 	OnStatsChanged.Broadcast();
 }
 
@@ -90,6 +112,7 @@ void AT4CPlayerState::ServerResetClass_Implementation()
 
 	UE_LOG(LogTemp, Display, TEXT("[T4C] %s recomeçou (escolher classe)"), *GetPlayerName());
 
+	ClearAbilities();
 	PushStatsToASC(/*bRefill=*/true);
 	OnStatsChanged.Broadcast();
 }
@@ -160,6 +183,40 @@ void AT4CPlayerState::PushStatsToASC(bool bRefill)
 	{
 		AbilitySystem->RefillVitals();
 	}
+}
+
+void AT4CPlayerState::GrantClassAbilities()
+{
+	if (!HasAuthority() || !AbilitySystem)
+	{
+		return;
+	}
+	ClearAbilities();
+
+	for (int32 Slot = 0; Slot < 2; ++Slot)
+	{
+		const FT4CAbility Data = T4CAbilities::Get(ChosenClass, Slot);
+		const int32 InputID = (Slot == 0)
+			? static_cast<int32>(ET4CAbilityInputID::AbilityQ)
+			: static_cast<int32>(ET4CAbilityInputID::AbilityE);
+
+		FGameplayAbilitySpec Spec(AbilityClassForKind(Data.Kind), /*Level=*/1, InputID, /*SourceObject=*/this);
+		GrantedAbilities.Add(AbilitySystem->GiveAbility(Spec));
+	}
+}
+
+void AT4CPlayerState::ClearAbilities()
+{
+	if (!AbilitySystem)
+	{
+		GrantedAbilities.Reset();
+		return;
+	}
+	for (const FGameplayAbilitySpecHandle& Handle : GrantedAbilities)
+	{
+		AbilitySystem->ClearAbility(Handle);
+	}
+	GrantedAbilities.Reset();
 }
 
 void AT4CPlayerState::OnRep_Progression()
