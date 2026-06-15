@@ -1,5 +1,6 @@
 #include "Player/T4CCharacter.h"
 #include "Attributes/T4CAttributeComponent.h"
+#include "Combat/T4CProjectile.h"
 #include "Core/T4CPlayerState.h"
 #include "GameFramework/SpringArmComponent.h"
 #include "Camera/CameraComponent.h"
@@ -43,6 +44,8 @@ AT4CCharacter::AT4CCharacter()
 	FollowCamera->bUsePawnControlRotation = false;
 
 	AttributeComponent = CreateDefaultSubobject<UT4CAttributeComponent>(TEXT("AttributeComponent"));
+
+	ProjectileClass = AT4CProjectile::StaticClass();
 }
 
 void AT4CCharacter::BeginPlay()
@@ -142,18 +145,18 @@ void AT4CCharacter::ServerAttack_Implementation()
 		return;
 	}
 
-	// Esfera à frente do personagem para encontrar um alvo.
-	const FVector Start = GetActorLocation();
-	const FVector End = Start + GetActorForwardVector() * MeleeRange;
+	// Cooldown de ataque.
+	const float Now = GetWorld()->GetTimeSeconds();
+	if (Now - LastAttackTime < AttackCooldown)
+	{
+		return;
+	}
+	LastAttackTime = Now;
 
-	TArray<FHitResult> Hits;
-	FCollisionShape Sphere = FCollisionShape::MakeSphere(60.f);
-	FCollisionQueryParams Params;
-	Params.AddIgnoredActor(this);
-
-	GetWorld()->SweepMultiByChannel(Hits, Start, End, FQuat::Identity, ECC_Pawn, Sphere, Params);
-
-	UE_LOG(LogTemp, Verbose, TEXT("[T4C] ServerAttack de %s | hits=%d"), *GetName(), Hits.Num());
+	if (!ProjectileClass)
+	{
+		return;
+	}
 
 	// Dano = ArmaBase * (1 + STR * DamagePerStrength)   (GDD seção 2)
 	float StrMultiplier = 1.f;
@@ -163,22 +166,20 @@ void AT4CCharacter::ServerAttack_Implementation()
 	}
 	const float Damage = BaseWeaponDamage * StrMultiplier;
 
-	for (const FHitResult& Hit : Hits)
-	{
-		AActor* HitActor = Hit.GetActor();
-		if (!HitActor || HitActor == this)
-		{
-			continue;
-		}
+	// Dispara na direção em que o jogador mira (rotação de controle), saindo
+	// um pouco à frente da cápsula.
+	const FRotator AimRot(0.f, GetControlRotation().Yaw, 0.f);
+	const FVector Dir = AimRot.Vector();
+	const FVector Muzzle = GetActorLocation() + Dir * 90.f + FVector(0.f, 0.f, 30.f);
 
-		if (AT4CCharacter* Target = Cast<AT4CCharacter>(HitActor))
-		{
-			if (UT4CAttributeComponent* TargetAttr = Target->GetAttributeComponent())
-			{
-				TargetAttr->ApplyDamage(Damage, this);
-				break; // um alvo por golpe nesta primeira iteração
-			}
-		}
+	FActorSpawnParameters SpawnParams;
+	SpawnParams.Owner = this;
+	SpawnParams.Instigator = this;
+	SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+
+	if (AT4CProjectile* Projectile = GetWorld()->SpawnActor<AT4CProjectile>(ProjectileClass, Muzzle, AimRot, SpawnParams))
+	{
+		Projectile->SetDamage(Damage);
 	}
 }
 

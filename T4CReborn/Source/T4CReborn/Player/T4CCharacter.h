@@ -59,15 +59,19 @@ protected:
 	void AllocIntelligence() { AllocateStat(ET4CAttribute::Intelligence); }
 	void AllocWisdom()       { AllocateStat(ET4CAttribute::Wisdom); }
 
-	/** Alcance do ataque melee em cm. */
-	UPROPERTY(EditDefaultsOnly, Category = "Combat")
-	float MeleeRange = 175.f;
-
 	/** Dano base da arma desarmada/inicial. */
 	UPROPERTY(EditDefaultsOnly, Category = "Combat")
-	float BaseWeaponDamage = 10.f;
+	float BaseWeaponDamage = 12.f;
 
-	/** Cliente → servidor: solicita um ataque melee. */
+	/** Intervalo mínimo entre ataques (s). */
+	UPROPERTY(EditDefaultsOnly, Category = "Combat")
+	float AttackCooldown = 0.4f;
+
+	/** Projétil disparado ao atacar. */
+	UPROPERTY(EditDefaultsOnly, Category = "Combat")
+	TSubclassOf<class AT4CProjectile> ProjectileClass;
+
+	/** Cliente → servidor: solicita um ataque (dispara um projétil). */
 	UFUNCTION(Server, Reliable)
 	void ServerAttack();
 
@@ -77,4 +81,5 @@ protected:
 
 private:
 	bool bDeadHandled = false;
+	float LastAttackTime = -100.f;
 };
