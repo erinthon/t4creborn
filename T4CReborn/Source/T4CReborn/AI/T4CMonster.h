@@ -2,18 +2,22 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Character.h"
+#include "AbilitySystemInterface.h"
+#include "GAS/T4CCombatant.h"
 #include "Attributes/T4CAttributeData.h"
 #include "T4CMonster.generated.h"
 
-class UT4CAttributeComponent;
 class UStaticMeshComponent;
+class UT4CAbilitySystemComponent;
+class UT4CAttributeSet;
 
 /**
  * Inimigo PvE de Althea. Autoritativo no servidor; conduzido por
  * AT4CMonsterAIController. Concede XP ao jogador que o derrotar.
+ * Possui seu próprio ASC (não tem PlayerState).
  */
 UCLASS()
-class T4CREBORN_API AT4CMonster : public ACharacter
+class T4CREBORN_API AT4CMonster : public ACharacter, public IAbilitySystemInterface, public IT4CCombatant
 {
 	GENERATED_BODY()
 
@@ -22,8 +26,15 @@ public:
 
 	virtual void PossessedBy(AController* NewController) override;
 
+	// --- GAS ---
+	virtual UAbilitySystemComponent* GetAbilitySystemComponent() const override;
+	UT4CAttributeSet* GetAttributeSet() const { return AttributeSet; }
+
 	UFUNCTION(BlueprintPure, Category = "T4C")
-	UT4CAttributeComponent* GetAttributeComponent() const { return AttributeComponent; }
+	bool IsAlive() const;
+
+	/** IT4CCombatant: servidor reage à morte (XP ao matador, loot, respawn). */
+	virtual void HandleDeath(AActor* Killer) override;
 
 	float GetAttackRange() const { return AttackRange; }
 
@@ -36,8 +47,14 @@ public:
 protected:
 	virtual void BeginPlay() override;
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "T4C")
-	TObjectPtr<UT4CAttributeComponent> AttributeComponent;
+	/** Servidor: liga o ASC, define stats, aplica GEs de startup e enche vitais. */
+	void InitAbilitySystem();
+
+	UPROPERTY(VisibleAnywhere, Category = "T4C|GAS")
+	TObjectPtr<UT4CAbilitySystemComponent> AbilitySystem;
+
+	UPROPERTY(VisibleAnywhere, Category = "T4C|GAS")
+	TObjectPtr<UT4CAttributeSet> AttributeSet;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "T4C")
 	TObjectPtr<UStaticMeshComponent> BodyMesh;
@@ -56,9 +73,6 @@ protected:
 
 	UPROPERTY(EditDefaultsOnly, Category = "T4C|Progression")
 	int32 XPReward = 50;
-
-	UFUNCTION()
-	void HandleDeath(AActor* Killer);
 
 private:
 	float LastAttackTime = -100.f;

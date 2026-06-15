@@ -1,16 +1,46 @@
 #include "Core/T4CPlayerState.h"
 #include "Player/T4CCharacter.h"
-#include "Attributes/T4CAttributeComponent.h"
+#include "GAS/T4CAbilitySystemComponent.h"
+#include "GAS/T4CAttributeSet.h"
 #include "Items/T4CInventoryComponent.h"
 #include "Net/UnrealNetwork.h"
 
 AT4CPlayerState::AT4CPlayerState()
 {
-	// Replicação mais responsiva para dados de progressão.
-	SetNetUpdateFrequency(10.f);
+	// Replicação mais responsiva para dados de progressão e atributos GAS.
+	SetNetUpdateFrequency(30.f);
+
+	// ASC + AttributeSet vivem no PlayerState (persistem entre respawns do pawn).
+	AbilitySystem = CreateDefaultSubobject<UT4CAbilitySystemComponent>(TEXT("AbilitySystem"));
+	AbilitySystem->SetIsReplicated(true);
+	AbilitySystem->SetReplicationMode(EGameplayEffectReplicationMode::Mixed);
+
+	AttributeSet = CreateDefaultSubobject<UT4CAttributeSet>(TEXT("AttributeSet"));
 
 	// Inventário persiste no PlayerState (não no pawn, que morre/respawna).
 	Inventory = CreateDefaultSubobject<UT4CInventoryComponent>(TEXT("Inventory"));
+}
+
+UAbilitySystemComponent* AT4CPlayerState::GetAbilitySystemComponent() const
+{
+	return AbilitySystem;
+}
+
+void AT4CPlayerState::InitializeAttributes()
+{
+	if (!AbilitySystem || !HasAuthority())
+	{
+		return;
+	}
+	AbilitySystem->SetPrimaryStats(PrimaryStats);
+	AbilitySystem->ApplyStartupEffects(); // infinitos (derivados + regen), uma vez
+	AbilitySystem->RefillVitals();        // enche HP/Mana (também no respawn)
+
+	// Reaplica bônus do equipamento aos atributos do ASC.
+	if (Inventory)
+	{
+		Inventory->RefreshEquipmentBonuses();
+	}
 }
 
 void AT4CPlayerState::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
@@ -40,7 +70,7 @@ void AT4CPlayerState::ServerSelectClass_Implementation(ET4CClass Class)
 	UE_LOG(LogTemp, Display, TEXT("[T4C] %s escolheu a classe %s"), *GetPlayerName(), *GetClassName());
 
 	// Recalcula HP/Mana com os atributos do roll e enche as barras.
-	PushDerivedStatsToPawn(/*bRefill=*/true);
+	PushStatsToASC(/*bRefill=*/true);
 	OnStatsChanged.Broadcast();
 }
 
@@ -60,7 +90,7 @@ void AT4CPlayerState::ServerResetClass_Implementation()
 
 	UE_LOG(LogTemp, Display, TEXT("[T4C] %s recomeçou (escolher classe)"), *GetPlayerName());
 
-	PushDerivedStatsToPawn(/*bRefill=*/true);
+	PushStatsToASC(/*bRefill=*/true);
 	OnStatsChanged.Broadcast();
 }
 
@@ -100,7 +130,7 @@ void AT4CPlayerState::LevelUp()
 		*GetPlayerName(), CharacterLevel, StatPointsPerLevel, SkillPointsPerLevel);
 
 	// HP é concedido no level-up conforme END atual (fiel ao T4C).
-	PushDerivedStatsToPawn(/*bRefill=*/false);
+	PushStatsToASC(/*bRefill=*/false);
 }
 
 void AT4CPlayerState::ServerAllocateStat_Implementation(ET4CAttribute Attribute)
@@ -113,18 +143,22 @@ void AT4CPlayerState::ServerAllocateStat_Implementation(ET4CAttribute Attribute)
 	PrimaryStats.Add(Attribute, 1);
 	UnspentStatPoints--;
 
-	PushDerivedStatsToPawn(/*bRefill=*/false);
+	PushStatsToASC(/*bRefill=*/false);
 	OnStatsChanged.Broadcast();
 }
 
-void AT4CPlayerState::PushDerivedStatsToPawn(bool bRefill)
+void AT4CPlayerState::PushStatsToASC(bool bRefill)
 {
-	if (AT4CCharacter* Character = Cast<AT4CCharacter>(GetPawn()))
+	if (!AbilitySystem || !HasAuthority())
 	{
-		if (UT4CAttributeComponent* Attributes = Character->GetAttributeComponent())
-		{
-			Attributes->RecalculateDerivedStats(PrimaryStats, bRefill);
-		}
+		return;
+	}
+	// Atualiza os 5 atributos base; os MMCs recomputam MaxHealth/MaxMana de forma
+	// reativa. RefillVitals só quando pedido (ex.: troca de classe).
+	AbilitySystem->SetPrimaryStats(PrimaryStats);
+	if (bRefill)
+	{
+		AbilitySystem->RefillVitals();
 	}
 }
 

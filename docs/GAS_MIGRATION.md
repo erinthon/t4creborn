@@ -30,10 +30,15 @@ Tudo em C++ puro (sem Blueprint), mantendo a convenção do projeto.
 
 ## Estágios
 
-- **Estágio 0 — Fundação**: plugin GameplayAbilities + módulos no Build.cs; tags nativas;
-  pasta `GAS/`. (este doc)
-- **Estágio 1 — Atributos & vitais**: ASC + AttributeSet; dano/cura/regen via GEs; remove
-  `UT4CAttributeComponent`. Paridade de combate com o sistema antigo.
+- **Estágio 0 — Fundação** ✅: plugin GameplayAbilities + módulos no Build.cs; tags nativas;
+  pasta `GAS/`.
+- **Estágio 1 — Atributos & vitais** ✅: ASC + AttributeSet; dano via `GE_Damage`+`UExec_Damage`,
+  cura via `GE_Heal`, custo via `GE_Cost`, regen via `GE_Regen` periódico, derivados via
+  `GE_DerivedAttributes`+MMCs. Morte via `IT4CCombatant`. `UT4CAttributeComponent` removido.
+  Verificado ao vivo: paridade de combate (dano/morte/loot/level-up), sem erros.
+  - *Simplificações temporárias (refinar nos próximos estágios):* cooldown ainda é manual
+    (`LastAbilityTime`); equipamento aplica `SetNumericAttributeBase` direto (vira GE no Est. 3);
+    Parry virou +Armadura plana temporária (era redução fracionária).
 - **Estágio 2 — Habilidades**: Q/E viram GameplayAbilities; custo/cooldown via GEs;
   input por `AbilityInputID`.
 - **Estágio 3 — Equipamento & limpeza**: bônus via GEs; remove código morto; docs/memória.

@@ -1,7 +1,6 @@
 #include "AI/T4CMonsterAIController.h"
 #include "AI/T4CMonster.h"
 #include "Player/T4CCharacter.h"
-#include "Attributes/T4CAttributeComponent.h"
 #include "EngineUtils.h"
 
 AT4CMonsterAIController::AT4CMonsterAIController()
@@ -19,12 +18,9 @@ void AT4CMonsterAIController::Tick(float DeltaSeconds)
 		return;
 	}
 
-	if (UT4CAttributeComponent* MyAttr = Monster->GetAttributeComponent())
+	if (!Monster->IsAlive())
 	{
-		if (!MyAttr->IsAlive())
-		{
-			return;
-		}
+		return;
 	}
 
 	// Encontra o jogador vivo mais próximo dentro do raio de aggro.
@@ -39,12 +35,9 @@ void AT4CMonsterAIController::Tick(float DeltaSeconds)
 		{
 			continue;
 		}
-		if (UT4CAttributeComponent* PAttr = Player->GetAttributeComponent())
+		if (!Player->IsAlive())
 		{
-			if (!PAttr->IsAlive())
-			{
-				continue;
-			}
+			continue;
 		}
 
 		const float DistSq = FVector::DistSquared(MyLoc, Player->GetActorLocation());

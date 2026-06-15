@@ -2,11 +2,14 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/PlayerState.h"
+#include "AbilitySystemInterface.h"
 #include "Attributes/T4CAttributeData.h"
 #include "Attributes/T4CClassData.h"
 #include "T4CPlayerState.generated.h"
 
 class UT4CInventoryComponent;
+class UT4CAbilitySystemComponent;
+class UT4CAttributeSet;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnStatsChanged);
 
@@ -15,7 +18,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnStatsChanged);
  * não-gastos. Replicado para todos. Mutações ocorrem SOMENTE no servidor.
  */
 UCLASS()
-class T4CREBORN_API AT4CPlayerState : public APlayerState
+class T4CREBORN_API AT4CPlayerState : public APlayerState, public IAbilitySystemInterface
 {
 	GENERATED_BODY()
 
@@ -23,6 +26,15 @@ public:
 	AT4CPlayerState();
 
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
+
+	// --- GAS ---
+	virtual UAbilitySystemComponent* GetAbilitySystemComponent() const override;
+	UT4CAbilitySystemComponent* GetT4CAbilitySystemComponent() const { return AbilitySystem; }
+	UT4CAttributeSet* GetAttributeSet() const { return AttributeSet; }
+
+	/** Servidor: inicializa os atributos do ASC (base + GEs de startup + refill).
+	 *  Chamado pelo Character no PossessedBy (também serve para refill no respawn). */
+	void InitializeAttributes();
 
 	UFUNCTION(BlueprintPure, Category = "T4C|Progression")
 	const FT4CPrimaryStats& GetPrimaryStats() const { return PrimaryStats; }
@@ -74,6 +86,13 @@ public:
 	FOnStatsChanged OnStatsChanged;
 
 protected:
+	/** ASC do jogador. Vive no PlayerState para persistir entre respawns. */
+	UPROPERTY(VisibleAnywhere, Category = "T4C|GAS")
+	TObjectPtr<UT4CAbilitySystemComponent> AbilitySystem;
+
+	UPROPERTY(VisibleAnywhere, Category = "T4C|GAS")
+	TObjectPtr<UT4CAttributeSet> AttributeSet;
+
 	/** Inventário persistente (sobrevive aos respawns do pawn). */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "T4C|Inventory")
 	TObjectPtr<UT4CInventoryComponent> Inventory;
@@ -105,8 +124,8 @@ protected:
 	/** Servidor: avança um nível e concede pontos (fiel ao T4C: 5 stat / 15 skill). */
 	void LevelUp();
 
-	/** Pede ao Character/AttributeComponent para recalcular HP/Mana. Servidor. */
-	void PushDerivedStatsToPawn(bool bRefill);
+	/** Servidor: empurra os atributos primários ao ASC; opcionalmente enche vitais. */
+	void PushStatsToASC(bool bRefill);
 
 	// Pontos concedidos por nível — espelham FT4CBalanceConstants.
 	static constexpr int32 StatPointsPerLevel = 5;

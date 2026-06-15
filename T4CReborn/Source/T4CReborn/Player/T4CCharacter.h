@@ -2,21 +2,25 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Character.h"
+#include "AbilitySystemInterface.h"
+#include "GAS/T4CCombatant.h"
 #include "Attributes/T4CAttributeData.h"
 #include "T4CCharacter.generated.h"
 
-class UT4CAttributeComponent;
 class USpringArmComponent;
 class UCameraComponent;
 class UStaticMeshComponent;
+class UT4CAttributeSet;
 
 /**
  * Pawn jogável de Althea. Câmera em terceira pessoa (action-RPG).
  * Autossuficiente: corpo visível e bindings de input definidos em código/config,
  * sem necessidade de Blueprint. Combate e atributos são autoritativos no servidor.
+ *
+ * O ASC vive no PlayerState (persiste entre respawns); o Character é o avatar.
  */
 UCLASS()
-class T4CREBORN_API AT4CCharacter : public ACharacter
+class T4CREBORN_API AT4CCharacter : public ACharacter, public IAbilitySystemInterface, public IT4CCombatant
 {
 	GENERATED_BODY()
 
@@ -25,15 +29,23 @@ public:
 
 	virtual void SetupPlayerInputComponent(UInputComponent* PlayerInputComponent) override;
 	virtual void PossessedBy(AController* NewController) override;
+	virtual void OnRep_PlayerState() override;
+
+	// --- GAS ---
+	virtual UAbilitySystemComponent* GetAbilitySystemComponent() const override;
+	UT4CAttributeSet* GetAttributeSet() const;
 
 	UFUNCTION(BlueprintPure, Category = "T4C")
-	UT4CAttributeComponent* GetAttributeComponent() const { return AttributeComponent; }
+	bool IsAlive() const;
+
+	/** IT4CCombatant: servidor reage à morte (XP ao matador, respawn). */
+	virtual void HandleDeath(AActor* Killer) override;
 
 protected:
 	virtual void BeginPlay() override;
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "T4C")
-	TObjectPtr<UT4CAttributeComponent> AttributeComponent;
+	/** Servidor e cliente: liga o ASC do PlayerState a este avatar. */
+	void InitAbilitySystem();
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "T4C")
 	TObjectPtr<UStaticMeshComponent> BodyMesh;
@@ -111,10 +123,6 @@ public:
 protected:
 	/** Servidor: dispara um projétil para frente, com dano, cor e tamanho. */
 	void SpawnAttackProjectile(float Damage, FLinearColor Color, float Scale);
-
-	/** Servidor: reage à morte deste personagem. */
-	UFUNCTION()
-	void HandleDeath(AActor* Killer);
 
 private:
 	bool bDeadHandled = false;

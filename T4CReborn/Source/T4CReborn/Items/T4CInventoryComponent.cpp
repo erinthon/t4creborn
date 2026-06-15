@@ -1,7 +1,10 @@
 #include "Items/T4CInventoryComponent.h"
-#include "Attributes/T4CAttributeComponent.h"
-#include "GameFramework/PlayerState.h"
-#include "GameFramework/Pawn.h"
+#include "GAS/T4CAbilitySystemComponent.h"
+#include "GAS/T4CAttributeSet.h"
+#include "GAS/T4CGameplayTags.h"
+#include "GAS/Effects/T4CGameplayEffects.h"
+#include "AbilitySystemComponent.h"
+#include "AbilitySystemBlueprintLibrary.h"
 #include "Net/UnrealNetwork.h"
 
 UT4CInventoryComponent::UT4CInventoryComponent()
@@ -78,21 +81,22 @@ bool UT4CInventoryComponent::UseFirstPotion()
 			continue;
 		}
 
-		UT4CAttributeComponent* Attr = nullptr;
-		if (const APlayerState* PS = Cast<APlayerState>(GetOwner()))
+		UAbilitySystemComponent* ASC = UAbilitySystemBlueprintLibrary::GetAbilitySystemComponent(GetOwner());
+		const UT4CAttributeSet* Set = ASC ? ASC->GetSet<UT4CAttributeSet>() : nullptr;
+		if (!ASC || !Set || !Set->IsAlive())
 		{
-			if (const APawn* Pawn = PS->GetPawn())
-			{
-				Attr = Pawn->FindComponentByClass<UT4CAttributeComponent>();
-			}
-		}
-		if (!Attr || !Attr->IsAlive())
-		{
-			return false; // sem pawn vivo: não desperdiça a poção
+			return false; // sem ASC vivo: não desperdiça a poção
 		}
 
 		const float Heal = Items[i].HealAmount;
-		Attr->Heal(Heal);
+		// Cura via GE_Heal (SetByCaller Data.Healing).
+		FGameplayEffectContextHandle Ctx = ASC->MakeEffectContext();
+		FGameplayEffectSpecHandle Spec = ASC->MakeOutgoingSpec(UGE_Heal::StaticClass(), 1.f, Ctx);
+		if (Spec.IsValid())
+		{
+			Spec.Data->SetSetByCallerMagnitude(T4CTags::Data_Healing, Heal);
+			ASC->ApplyGameplayEffectSpecToSelf(*Spec.Data);
+		}
 		UE_LOG(LogTemp, Display, TEXT("[T4C] Usou %s (+%.0f HP)"), *Items[i].Name, Heal);
 
 		Items.RemoveAt(i);
@@ -115,14 +119,11 @@ void UT4CInventoryComponent::RefreshEquipmentBonuses()
 	{
 		return;
 	}
-	if (const APlayerState* PS = Cast<APlayerState>(GetOwner()))
+	if (UAbilitySystemComponent* ASC = UAbilitySystemBlueprintLibrary::GetAbilitySystemComponent(GetOwner()))
 	{
-		if (const APawn* Pawn = PS->GetPawn())
+		if (UT4CAbilitySystemComponent* T4CASC = Cast<UT4CAbilitySystemComponent>(ASC))
 		{
-			if (UT4CAttributeComponent* Attr = Pawn->FindComponentByClass<UT4CAttributeComponent>())
-			{
-				Attr->SetEquipment(GetEquippedArmor(), GetEquippedWeaponDamage());
-			}
+			T4CASC->SetEquipmentBonuses(GetEquippedArmor(), GetEquippedWeaponDamage());
 		}
 	}
 }

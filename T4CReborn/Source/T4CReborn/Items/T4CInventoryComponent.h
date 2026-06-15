@@ -28,7 +28,7 @@ public:
 	/** Servidor: usa a primeira poção do inventário (cura o pawn). Retorna true se usou. */
 	bool UseFirstPotion();
 
-	/** Servidor: reaplica os bônus de equipamento ao AttributeComponent do pawn
+	/** Servidor: reaplica os bônus de equipamento aos atributos do ASC
 	 *  (chamar após coletar/respawnar). */
 	void RefreshEquipmentBonuses();
 
