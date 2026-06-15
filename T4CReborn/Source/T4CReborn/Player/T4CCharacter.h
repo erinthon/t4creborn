@@ -51,13 +51,24 @@ protected:
 	void LookUpAt(float Value);
 	void Attack();
 
-	// Distribuição de pontos de atributo (teclas 1-5).
+	// Distribuição de pontos de atributo (teclas 1-5, após escolher classe).
 	void AllocateStat(ET4CAttribute Attribute);
 	void AllocStrength()     { AllocateStat(ET4CAttribute::Strength); }
 	void AllocEndurance()    { AllocateStat(ET4CAttribute::Endurance); }
 	void AllocAgility()      { AllocateStat(ET4CAttribute::Agility); }
 	void AllocIntelligence() { AllocateStat(ET4CAttribute::Intelligence); }
 	void AllocWisdom()       { AllocateStat(ET4CAttribute::Wisdom); }
+
+	// Seleção de classe (teclas 1-8, antes de escolher a classe).
+	void SelectClass(int32 Index);
+	void SelectClass0() { SelectClass(0); }
+	void SelectClass1() { SelectClass(1); }
+	void SelectClass2() { SelectClass(2); }
+	void SelectClass3() { SelectClass(3); }
+	void SelectClass4() { SelectClass(4); }
+	void SelectClass5() { SelectClass(5); }
+	void SelectClass6() { SelectClass(6); }
+	void SelectClass7() { SelectClass(7); }
 
 	/** Dano base da arma desarmada/inicial. */
 	UPROPERTY(EditDefaultsOnly, Category = "Combat")

@@ -86,19 +86,44 @@ void AT4CCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCompon
 	PlayerInputComponent->BindAxis(TEXT("LookUp"), this, &AT4CCharacter::LookUpAt);
 	PlayerInputComponent->BindAction(TEXT("Attack"), IE_Pressed, this, &AT4CCharacter::Attack);
 
-	PlayerInputComponent->BindAction(TEXT("AllocStr"), IE_Pressed, this, &AT4CCharacter::AllocStrength);
-	PlayerInputComponent->BindAction(TEXT("AllocEnd"), IE_Pressed, this, &AT4CCharacter::AllocEndurance);
-	PlayerInputComponent->BindAction(TEXT("AllocAgi"), IE_Pressed, this, &AT4CCharacter::AllocAgility);
-	PlayerInputComponent->BindAction(TEXT("AllocInt"), IE_Pressed, this, &AT4CCharacter::AllocIntelligence);
-	PlayerInputComponent->BindAction(TEXT("AllocWis"), IE_Pressed, this, &AT4CCharacter::AllocWisdom);
+	// Teclas 1-5: distribuem atributos (após classe) E selecionam classe (antes).
+	PlayerInputComponent->BindAction(TEXT("Slot1"), IE_Pressed, this, &AT4CCharacter::AllocStrength);
+	PlayerInputComponent->BindAction(TEXT("Slot1"), IE_Pressed, this, &AT4CCharacter::SelectClass0);
+	PlayerInputComponent->BindAction(TEXT("Slot2"), IE_Pressed, this, &AT4CCharacter::AllocEndurance);
+	PlayerInputComponent->BindAction(TEXT("Slot2"), IE_Pressed, this, &AT4CCharacter::SelectClass1);
+	PlayerInputComponent->BindAction(TEXT("Slot3"), IE_Pressed, this, &AT4CCharacter::AllocAgility);
+	PlayerInputComponent->BindAction(TEXT("Slot3"), IE_Pressed, this, &AT4CCharacter::SelectClass2);
+	PlayerInputComponent->BindAction(TEXT("Slot4"), IE_Pressed, this, &AT4CCharacter::AllocIntelligence);
+	PlayerInputComponent->BindAction(TEXT("Slot4"), IE_Pressed, this, &AT4CCharacter::SelectClass3);
+	PlayerInputComponent->BindAction(TEXT("Slot5"), IE_Pressed, this, &AT4CCharacter::AllocWisdom);
+	PlayerInputComponent->BindAction(TEXT("Slot5"), IE_Pressed, this, &AT4CCharacter::SelectClass4);
+	// Teclas 6-8: apenas seleção de classe.
+	PlayerInputComponent->BindAction(TEXT("Slot6"), IE_Pressed, this, &AT4CCharacter::SelectClass5);
+	PlayerInputComponent->BindAction(TEXT("Slot7"), IE_Pressed, this, &AT4CCharacter::SelectClass6);
+	PlayerInputComponent->BindAction(TEXT("Slot8"), IE_Pressed, this, &AT4CCharacter::SelectClass7);
 }
 
 void AT4CCharacter::AllocateStat(ET4CAttribute Attribute)
 {
-	// Encaminha ao servidor (RPC no PlayerState, que valida pontos disponíveis).
+	// Só após escolher a classe; o servidor valida os pontos disponíveis.
 	if (AT4CPlayerState* PS = GetPlayerState<AT4CPlayerState>())
 	{
-		PS->ServerAllocateStat(Attribute);
+		if (PS->HasChosenClass())
+		{
+			PS->ServerAllocateStat(Attribute);
+		}
+	}
+}
+
+void AT4CCharacter::SelectClass(int32 Index)
+{
+	// Só antes de ter escolhido uma classe.
+	if (AT4CPlayerState* PS = GetPlayerState<AT4CPlayerState>())
+	{
+		if (!PS->HasChosenClass())
+		{
+			PS->ServerSelectClass(T4CClasses::FromIndex(Index));
+		}
 	}
 }
 

@@ -18,6 +18,26 @@ void AT4CPlayerState::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutL
 	DOREPLIFETIME(AT4CPlayerState, Experience);
 	DOREPLIFETIME(AT4CPlayerState, UnspentStatPoints);
 	DOREPLIFETIME(AT4CPlayerState, UnspentSkillPoints);
+	DOREPLIFETIME(AT4CPlayerState, ChosenClass);
+	DOREPLIFETIME(AT4CPlayerState, bHasChosenClass);
+}
+
+void AT4CPlayerState::ServerSelectClass_Implementation(ET4CClass Class)
+{
+	if (!HasAuthority() || bHasChosenClass)
+	{
+		return; // a classe é escolhida uma única vez
+	}
+
+	ChosenClass = Class;
+	bHasChosenClass = true;
+	PrimaryStats = T4CClasses::Get(Class).Stats;
+
+	UE_LOG(LogTemp, Display, TEXT("[T4C] %s escolheu a classe %s"), *GetPlayerName(), *GetClassName());
+
+	// Recalcula HP/Mana com os atributos do roll e enche as barras.
+	PushDerivedStatsToPawn(/*bRefill=*/true);
+	OnStatsChanged.Broadcast();
 }
 
 int32 AT4CPlayerState::GetXPForNextLevel() const

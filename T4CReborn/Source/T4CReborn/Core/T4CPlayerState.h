@@ -3,6 +3,7 @@
 #include "CoreMinimal.h"
 #include "GameFramework/PlayerState.h"
 #include "Attributes/T4CAttributeData.h"
+#include "Attributes/T4CClassData.h"
 #include "T4CPlayerState.generated.h"
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnStatsChanged);
@@ -43,6 +44,19 @@ public:
 	UFUNCTION(Server, Reliable)
 	void ServerAllocateStat(ET4CAttribute Attribute);
 
+	/** Cliente → servidor: escolhe a classe inicial (define os atributos do roll). */
+	UFUNCTION(Server, Reliable)
+	void ServerSelectClass(ET4CClass Class);
+
+	UFUNCTION(BlueprintPure, Category = "T4C|Progression")
+	bool HasChosenClass() const { return bHasChosenClass; }
+
+	UFUNCTION(BlueprintPure, Category = "T4C|Progression")
+	ET4CClass GetChosenClass() const { return ChosenClass; }
+
+	UFUNCTION(BlueprintPure, Category = "T4C|Progression")
+	FString GetClassName() const { return T4CClasses::Get(ChosenClass).Name; }
+
 	/** XP necessário para alcançar o próximo nível. */
 	UFUNCTION(BlueprintPure, Category = "T4C|Progression")
 	int32 GetXPForNextLevel() const;
@@ -65,6 +79,12 @@ protected:
 
 	UPROPERTY(ReplicatedUsing = OnRep_Progression, VisibleAnywhere, Category = "T4C|Progression")
 	int32 UnspentSkillPoints = 0;
+
+	UPROPERTY(ReplicatedUsing = OnRep_Progression, VisibleAnywhere, Category = "T4C|Progression")
+	ET4CClass ChosenClass = ET4CClass::Warrior;
+
+	UPROPERTY(ReplicatedUsing = OnRep_Progression, VisibleAnywhere, Category = "T4C|Progression")
+	bool bHasChosenClass = false;
 
 	UFUNCTION()
 	void OnRep_Progression();

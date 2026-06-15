@@ -3,6 +3,7 @@
 #include "Core/T4CPlayerState.h"
 #include "Attributes/T4CAttributeComponent.h"
 #include "AI/T4CMonster.h"
+#include "Attributes/T4CClassData.h"
 #include "Engine/Canvas.h"
 #include "Engine/Font.h"
 #include "EngineUtils.h"
@@ -65,14 +66,39 @@ void AT4CHUD::DrawHUD()
 		return;
 	}
 
+	const FLinearColor White(1.f, 1.f, 1.f, 1.f);
+	const FLinearColor Gold(1.f, 0.85f, 0.2f, 1.f);
+	const FLinearColor Dim(0.75f, 0.75f, 0.8f, 1.f);
+
+	// --- Menu de seleção de classe (antes de escolher) ---
+	if (!PS->HasChosenClass())
+	{
+		const float PanelW = 560.f;
+		const float PanelX = (W - PanelW) * 0.5f;
+		float MY = H * 0.22f;
+		DrawRect(FLinearColor(0.f, 0.f, 0.f, 0.6f), PanelX - 20.f, MY - 20.f, PanelW + 40.f, 360.f);
+		DrawText(TEXT("ESCOLHA SUA CLASSE  (tecla 1-8)"), Gold, PanelX, MY, nullptr, 1.5f);
+		MY += 40.f;
+		for (int32 i = 0; i < T4CClasses::Count; ++i)
+		{
+			const FT4CClassDef Def = T4CClasses::Get(T4CClasses::FromIndex(i));
+			const FString Line = FString::Printf(TEXT("[%d] %-12s  STR %2d  END %2d  AGI %2d  INT %2d  WIS %2d"),
+				i + 1, *Def.Name, Def.Stats.Strength, Def.Stats.Endurance,
+				Def.Stats.Agility, Def.Stats.Intelligence, Def.Stats.Wisdom);
+			DrawText(Line, White, PanelX, MY, nullptr, 1.1f);
+			MY += 26.f;
+		}
+		DrawText(TEXT("END aumenta HP | STR aumenta dano | INT/WIS aumentam Mana"),
+			Dim, PanelX, MY + 6.f, nullptr, 1.0f);
+		return; // esconde o resto do HUD até escolher
+	}
+
 	// --- Progressão (canto superior esquerdo) ---
 	const FT4CPrimaryStats& S = PS->GetPrimaryStats();
 	float TY = 24.f;
-	const FLinearColor White(1.f, 1.f, 1.f, 1.f);
-	const FLinearColor Gold(1.f, 0.85f, 0.2f, 1.f);
 
-	DrawText(FString::Printf(TEXT("Nivel %d    XP %d / %d"),
-		PS->GetCharacterLevel(), PS->GetExperience(), PS->GetXPForNextLevel()),
+	DrawText(FString::Printf(TEXT("[%s]  Nivel %d    XP %d / %d"),
+		*PS->GetClassName(), PS->GetCharacterLevel(), PS->GetExperience(), PS->GetXPForNextLevel()),
 		Gold, 30.f, TY, nullptr, 1.3f);
 	TY += 28.f;
 
