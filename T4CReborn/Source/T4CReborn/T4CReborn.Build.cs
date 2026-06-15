@@ -17,7 +17,6 @@ public class T4CReborn : ModuleRules
 			"CoreUObject",
 			"Engine",
 			"InputCore",
-			"EnhancedInput",
 			"NetCore",
 			"UMG"
 		});

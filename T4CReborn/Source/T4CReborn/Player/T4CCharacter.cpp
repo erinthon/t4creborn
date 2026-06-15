@@ -5,8 +5,8 @@
 #include "Camera/CameraComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Components/CapsuleComponent.h"
-#include "EnhancedInputComponent.h"
-#include "EnhancedInputSubsystems.h"
+#include "Components/StaticMeshComponent.h"
+#include "UObject/ConstructorHelpers.h"
 
 AT4CCharacter::AT4CCharacter()
 {
@@ -16,6 +16,19 @@ AT4CCharacter::AT4CCharacter()
 	bUseControllerRotationYaw = false;
 	GetCharacterMovement()->bOrientRotationToMovement = true;
 	GetCharacterMovement()->RotationRate = FRotator(0.f, 540.f, 0.f);
+
+	// Corpo visível: cilindro padrão do engine (sempre disponível, sem conteúdo de projeto).
+	BodyMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("BodyMesh"));
+	BodyMesh->SetupAttachment(RootComponent);
+	BodyMesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	static ConstructorHelpers::FObjectFinder<UStaticMesh> CylinderMesh(
+		TEXT("/Engine/BasicShapes/Cylinder.Cylinder"));
+	if (CylinderMesh.Succeeded())
+	{
+		BodyMesh->SetStaticMesh(CylinderMesh.Object);
+		// Cilindro do engine tem 100uu de altura; a cápsula tem ~176uu (half height 88).
+		BodyMesh->SetRelativeScale3D(FVector(0.68f, 0.68f, 1.76f));
+	}
 
 	CameraBoom = CreateDefaultSubobject<USpringArmComponent>(TEXT("CameraBoom"));
 	CameraBoom->SetupAttachment(RootComponent);
@@ -37,19 +50,6 @@ void AT4CCharacter::BeginPlay()
 	if (AttributeComponent)
 	{
 		AttributeComponent->OnDeath.AddDynamic(this, &AT4CCharacter::HandleDeath);
-	}
-
-	// Mapping context só para o jogador local.
-	if (APlayerController* PC = Cast<APlayerController>(GetController()))
-	{
-		if (UEnhancedInputLocalPlayerSubsystem* Subsystem =
-			ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(PC->GetLocalPlayer()))
-		{
-			if (DefaultMappingContext)
-			{
-				Subsystem->AddMappingContext(DefaultMappingContext, 0);
-			}
-		}
 	}
 }
 
@@ -74,44 +74,41 @@ void AT4CCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCompon
 {
 	Super::SetupPlayerInputComponent(PlayerInputComponent);
 
-	if (UEnhancedInputComponent* Input = Cast<UEnhancedInputComponent>(PlayerInputComponent))
+	PlayerInputComponent->BindAxis(TEXT("MoveForward"), this, &AT4CCharacter::MoveForward);
+	PlayerInputComponent->BindAxis(TEXT("MoveRight"), this, &AT4CCharacter::MoveRight);
+	PlayerInputComponent->BindAxis(TEXT("Turn"), this, &AT4CCharacter::Turn);
+	PlayerInputComponent->BindAxis(TEXT("LookUp"), this, &AT4CCharacter::LookUpAt);
+	PlayerInputComponent->BindAction(TEXT("Attack"), IE_Pressed, this, &AT4CCharacter::Attack);
+}
+
+void AT4CCharacter::MoveForward(float Value)
+{
+	if (Controller && Value != 0.f)
 	{
-		if (MoveAction)
-		{
-			Input->BindAction(MoveAction, ETriggerEvent::Triggered, this, &AT4CCharacter::Move);
-		}
-		if (LookAction)
-		{
-			Input->BindAction(LookAction, ETriggerEvent::Triggered, this, &AT4CCharacter::Look);
-		}
-		if (AttackAction)
-		{
-			Input->BindAction(AttackAction, ETriggerEvent::Started, this, &AT4CCharacter::Attack);
-		}
+		const FRotator YawRotation(0.f, Controller->GetControlRotation().Yaw, 0.f);
+		const FVector Forward = FRotationMatrix(YawRotation).GetUnitAxis(EAxis::X);
+		AddMovementInput(Forward, Value);
 	}
 }
 
-void AT4CCharacter::Move(const FInputActionValue& Value)
+void AT4CCharacter::MoveRight(float Value)
 {
-	const FVector2D Axis = Value.Get<FVector2D>();
-	if (!Controller)
+	if (Controller && Value != 0.f)
 	{
-		return;
+		const FRotator YawRotation(0.f, Controller->GetControlRotation().Yaw, 0.f);
+		const FVector Right = FRotationMatrix(YawRotation).GetUnitAxis(EAxis::Y);
+		AddMovementInput(Right, Value);
 	}
-
-	const FRotator YawRotation(0.f, Controller->GetControlRotation().Yaw, 0.f);
-	const FVector Forward = FRotationMatrix(YawRotation).GetUnitAxis(EAxis::X);
-	const FVector Right = FRotationMatrix(YawRotation).GetUnitAxis(EAxis::Y);
-
-	AddMovementInput(Forward, Axis.Y);
-	AddMovementInput(Right, Axis.X);
 }
 
-void AT4CCharacter::Look(const FInputActionValue& Value)
+void AT4CCharacter::Turn(float Value)
 {
-	const FVector2D Axis = Value.Get<FVector2D>();
-	AddControllerYawInput(Axis.X);
-	AddControllerPitchInput(Axis.Y);
+	AddControllerYawInput(Value);
+}
+
+void AT4CCharacter::LookUpAt(float Value)
+{
+	AddControllerPitchInput(Value);
 }
 
 void AT4CCharacter::Attack()

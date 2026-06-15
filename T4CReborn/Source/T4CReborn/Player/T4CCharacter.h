@@ -7,13 +7,12 @@
 class UT4CAttributeComponent;
 class USpringArmComponent;
 class UCameraComponent;
-class UInputAction;
-class UInputMappingContext;
-struct FInputActionValue;
+class UStaticMeshComponent;
 
 /**
  * Pawn jogável de Althea. Câmera em terceira pessoa (action-RPG).
- * Combate e atributos são autoritativos no servidor.
+ * Autossuficiente: corpo visível e bindings de input definidos em código/config,
+ * sem necessidade de Blueprint. Combate e atributos são autoritativos no servidor.
  */
 UCLASS()
 class T4CREBORN_API AT4CCharacter : public ACharacter
@@ -35,27 +34,20 @@ protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "T4C")
 	TObjectPtr<UT4CAttributeComponent> AttributeComponent;
 
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "T4C")
+	TObjectPtr<UStaticMeshComponent> BodyMesh;
+
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Camera")
 	TObjectPtr<USpringArmComponent> CameraBoom;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Camera")
 	TObjectPtr<UCameraComponent> FollowCamera;
 
-	// --- Enhanced Input (atribuído no Blueprint derivado) ---
-	UPROPERTY(EditDefaultsOnly, Category = "Input")
-	TObjectPtr<UInputMappingContext> DefaultMappingContext;
-
-	UPROPERTY(EditDefaultsOnly, Category = "Input")
-	TObjectPtr<UInputAction> MoveAction;
-
-	UPROPERTY(EditDefaultsOnly, Category = "Input")
-	TObjectPtr<UInputAction> LookAction;
-
-	UPROPERTY(EditDefaultsOnly, Category = "Input")
-	TObjectPtr<UInputAction> AttackAction;
-
-	void Move(const FInputActionValue& Value);
-	void Look(const FInputActionValue& Value);
+	// --- Input (bindings clássicos; mapeamentos em Config/DefaultInput.ini) ---
+	void MoveForward(float Value);
+	void MoveRight(float Value);
+	void Turn(float Value);
+	void LookUpAt(float Value);
 	void Attack();
 
 	/** Alcance do ataque melee em cm. */
