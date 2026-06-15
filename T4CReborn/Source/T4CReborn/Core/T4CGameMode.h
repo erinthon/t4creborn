@@ -5,6 +5,7 @@
 #include "T4CGameMode.generated.h"
 
 class AT4CMonster;
+class AT4CLootPickup;
 
 /**
  * Regras de partida de Althea. Existe SOMENTE no servidor.
@@ -27,6 +28,9 @@ public:
 	/** Chamado por um monstro ao morrer; agenda um respawn no mesmo ponto. */
 	void OnMonsterKilled(const FVector& SpawnLocation);
 
+	/** Chamado por um monstro ao morrer; rola e dropa loot no local da morte. */
+	void DropLoot(const FVector& DeathLocation);
+
 	/** Respawna um jogador morto em um PlayerStart. */
 	void RespawnPlayer(AController* Controller);
 
@@ -42,6 +46,14 @@ protected:
 	/** Segundos até um monstro reaparecer após morrer. */
 	UPROPERTY(EditDefaultsOnly, Category = "T4C|PvE")
 	float MonsterRespawnDelay = 5.f;
+
+	/** Ator de loot dropado pelos monstros (default: AT4CLootPickup). */
+	UPROPERTY(EditDefaultsOnly, Category = "T4C|Loot")
+	TSubclassOf<AT4CLootPickup> LootPickupClass;
+
+	/** Chance (0..1) de um monstro dropar loot ao morrer. */
+	UPROPERTY(EditDefaultsOnly, Category = "T4C|Loot")
+	float LootDropChance = 0.65f;
 
 	void SpawnMonster(FVector Location);
 

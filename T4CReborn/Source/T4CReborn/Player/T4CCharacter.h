@@ -88,6 +88,19 @@ protected:
 	UFUNCTION(Server, Reliable)
 	void ServerUseAbility(int32 Slot);
 
+	// --- Loot / inventário ---
+	/** Tecla F: coleta o saco de loot mais próximo dentro do alcance. */
+	void Interact();
+
+	UFUNCTION(Server, Reliable)
+	void ServerInteract();
+
+	/** Tecla G: usa a primeira poção do inventário. */
+	void UsePotion();
+
+	UFUNCTION(Server, Reliable)
+	void ServerUsePotion();
+
 public:
 	/** Para o HUD: nome da habilidade no slot (0=Q, 1=E). */
 	FString GetAbilityName(int32 Slot) const;

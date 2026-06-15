@@ -6,6 +6,8 @@
 #include "Attributes/T4CClassData.h"
 #include "T4CPlayerState.generated.h"
 
+class UT4CInventoryComponent;
+
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnStatsChanged);
 
 /**
@@ -52,6 +54,9 @@ public:
 	UFUNCTION(Server, Reliable)
 	void ServerResetClass();
 
+	UFUNCTION(BlueprintPure, Category = "T4C|Inventory")
+	UT4CInventoryComponent* GetInventory() const { return Inventory; }
+
 	UFUNCTION(BlueprintPure, Category = "T4C|Progression")
 	bool HasChosenClass() const { return bHasChosenClass; }
 
@@ -69,6 +74,10 @@ public:
 	FOnStatsChanged OnStatsChanged;
 
 protected:
+	/** Inventário persistente (sobrevive aos respawns do pawn). */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "T4C|Inventory")
+	TObjectPtr<UT4CInventoryComponent> Inventory;
+
 	UPROPERTY(ReplicatedUsing = OnRep_Progression, VisibleAnywhere, Category = "T4C|Progression")
 	FT4CPrimaryStats PrimaryStats;
 

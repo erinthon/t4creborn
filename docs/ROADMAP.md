@@ -26,11 +26,11 @@ Marcos incrementais. Cada fase entrega algo jogável/verificável.
 - [ ] **Critério:** matar monstro, ganhar XP, subir de nível, ficar mais forte — replicado
 
 ## Fase 3 — Identidade T4C
-- [ ] Criação de personagem com "roll" de atributos (8 classes do GDD)
-- [ ] 1ª fatia de Arakas (vila + arredores) com layout fiel
-- [ ] Primeiras perícias como abilities (Powerful Blow, Parry) + 1 linha de magia (Fogo: Fire Dart)
-- [ ] Inventário + equipamento básico, loot
-- [ ] **Critério:** criar um Guerreiro ou Mago e jogar a fatia vertical de Arakas com outro jogador
+- [x] Criação de personagem com "roll" de atributos (8 classes do GDD)
+- [x] 1ª fatia de Arakas (vila + arredores) com layout fiel — placeholders: poço, casas, muralha, torre
+- [x] Primeiras perícias como abilities (Powerful Blow, Parry) + 1 linha de magia (Fogo: Fire Dart)
+- [x] Inventário + equipamento básico, loot — drop por raridade, coleta (F), auto-equip, poções (G)
+- [x] **Critério:** criar um Guerreiro ou Mago e jogar a fatia vertical de Arakas com outro jogador
 
 ## Fase 4 — Escala
 - [ ] Migrar para Gameplay Ability System (GAS)

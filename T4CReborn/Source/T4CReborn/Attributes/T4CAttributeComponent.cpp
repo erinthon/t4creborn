@@ -36,6 +36,8 @@ void UT4CAttributeComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProperty
 	DOREPLIFETIME(UT4CAttributeComponent, MaxHealth);
 	DOREPLIFETIME(UT4CAttributeComponent, Mana);
 	DOREPLIFETIME(UT4CAttributeComponent, MaxMana);
+	DOREPLIFETIME(UT4CAttributeComponent, Armor);
+	DOREPLIFETIME(UT4CAttributeComponent, WeaponDamageBonus);
 }
 
 void UT4CAttributeComponent::RecalculateDerivedStats(const FT4CPrimaryStats& Stats, bool bRefill)
@@ -82,6 +84,12 @@ float UT4CAttributeComponent::ApplyDamage(float RawDamage, AActor* InstigatorAct
 	if (GetWorld() && GetWorld()->GetTimeSeconds() < DamageReductionExpiry)
 	{
 		RawDamage *= (1.f - DamageReductionFraction);
+	}
+
+	// Armadura: redução plana, mas o golpe sempre tira ao menos 1 de vida.
+	if (Armor > 0.f)
+	{
+		RawDamage = FMath::Max(1.f, RawDamage - Armor);
 	}
 
 	const float OldHealth = Health;
@@ -131,6 +139,16 @@ void UT4CAttributeComponent::ApplyTempDamageReduction(float Fraction, float Dura
 	}
 	DamageReductionFraction = FMath::Clamp(Fraction, 0.f, 0.95f);
 	DamageReductionExpiry = (GetWorld() ? GetWorld()->GetTimeSeconds() : 0.f) + Duration;
+}
+
+void UT4CAttributeComponent::SetEquipment(float InArmor, float InWeaponDamageBonus)
+{
+	if (GetOwnerRole() != ROLE_Authority)
+	{
+		return;
+	}
+	Armor = FMath::Max(0.f, InArmor);
+	WeaponDamageBonus = FMath::Max(0.f, InWeaponDamageBonus);
 }
 
 void UT4CAttributeComponent::OnRep_Health(float OldHealth)

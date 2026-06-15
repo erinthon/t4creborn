@@ -1,12 +1,16 @@
 #include "Core/T4CPlayerState.h"
 #include "Player/T4CCharacter.h"
 #include "Attributes/T4CAttributeComponent.h"
+#include "Items/T4CInventoryComponent.h"
 #include "Net/UnrealNetwork.h"
 
 AT4CPlayerState::AT4CPlayerState()
 {
 	// Replicação mais responsiva para dados de progressão.
 	SetNetUpdateFrequency(10.f);
+
+	// Inventário persiste no PlayerState (não no pawn, que morre/respawna).
+	Inventory = CreateDefaultSubobject<UT4CInventoryComponent>(TEXT("Inventory"));
 }
 
 void AT4CPlayerState::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const

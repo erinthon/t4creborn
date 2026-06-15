@@ -4,6 +4,8 @@
 #include "Attributes/T4CAttributeComponent.h"
 #include "AI/T4CMonster.h"
 #include "Attributes/T4CClassData.h"
+#include "Items/T4CInventoryComponent.h"
+#include "Items/T4CLootPickup.h"
 #include "Engine/Canvas.h"
 #include "Engine/Font.h"
 #include "EngineUtils.h"
@@ -114,6 +116,61 @@ void AT4CHUD::DrawHUD()
 			Gold, 30.f, TY, nullptr, 1.1f);
 	}
 
+	// --- Inventário e equipamento (canto superior direito) ---
+	if (UT4CInventoryComponent* Inv = PS->GetInventory())
+	{
+		const float PanelW = 300.f;
+		const float PX = W - PanelW - 20.f;
+		float IY = 24.f;
+
+		DrawText(TEXT("EQUIPAMENTO"), Gold, PX, IY, nullptr, 1.2f);
+		IY += 26.f;
+		DrawText(FString::Printf(TEXT("Arma: %s (+%.0f dano)"),
+			*Inv->GetEquippedWeaponName(), Inv->GetEquippedWeaponDamage()),
+			White, PX, IY, nullptr, 1.0f);
+		IY += 22.f;
+		DrawText(FString::Printf(TEXT("Armadura: %s (+%.0f)"),
+			*Inv->GetEquippedArmorName(), Inv->GetEquippedArmor()),
+			White, PX, IY, nullptr, 1.0f);
+		IY += 30.f;
+
+		const TArray<FT4CItem>& Items = Inv->GetItems();
+		DrawText(FString::Printf(TEXT("MOCHILA (%d)"), Items.Num()), Gold, PX, IY, nullptr, 1.2f);
+		IY += 26.f;
+		for (int32 i = 0; i < Items.Num(); ++i)
+		{
+			const bool bEquipped = (i == Inv->GetEquippedWeaponIndex()) || (i == Inv->GetEquippedArmorIndex());
+			const FString Line = FString::Printf(TEXT("%s %s"),
+				bEquipped ? TEXT("[E]") : TEXT(" - "), *Items[i].Name);
+			DrawText(Line, Items[i].RarityColor(), PX, IY, nullptr, 1.0f);
+			IY += 20.f;
+		}
+	}
+
+	// --- Prompt de coleta: saco de loot próximo (centro da tela) ---
+	{
+		AT4CLootPickup* NearestLoot = nullptr;
+		float BestDistSq = TNumericLimits<float>::Max();
+		const FVector MyLoc = Char->GetActorLocation();
+		for (TActorIterator<AT4CLootPickup> It(GetWorld()); It; ++It)
+		{
+			AT4CLootPickup* Pickup = *It;
+			if (!Pickup) continue;
+			const float DistSq = FVector::DistSquared(MyLoc, Pickup->GetActorLocation());
+			const float Reach = Pickup->GetPickupRadius();
+			if (DistSq <= Reach * Reach && DistSq < BestDistSq)
+			{
+				BestDistSq = DistSq;
+				NearestLoot = Pickup;
+			}
+		}
+		if (NearestLoot)
+		{
+			const FString Prompt = FString::Printf(TEXT("[F] Pegar: %s"), *NearestLoot->GetItem().Name);
+			DrawText(Prompt, NearestLoot->GetItem().RarityColor(), W * 0.5f - 110.f, H * 0.62f, nullptr, 1.3f);
+		}
+	}
+
 	// --- Barras de vida flutuantes sobre os monstros (feedback de combate) ---
 	for (TActorIterator<AT4CMonster> It(GetWorld()); It; ++It)
 	{
@@ -172,8 +229,8 @@ void AT4CHUD::DrawHUD()
 	}
 
 	// --- Dica de controles (canto inferior direito) ---
-	DrawText(TEXT("WASD mover | Mouse olhar | Q/E habilidades | R trocar classe"),
-		FLinearColor(0.8f, 0.8f, 0.8f, 1.f), W - 560.f, H - 24.f, nullptr, 1.0f);
+	DrawText(TEXT("WASD mover | Mouse olhar | Q/E habilidades | F pegar | G pocao | R trocar classe"),
+		FLinearColor(0.8f, 0.8f, 0.8f, 1.f), W - 720.f, H - 24.f, nullptr, 1.0f);
 }
 
 void AT4CHUD::DrawBar(float X, float Y, float W, float H, float Pct,

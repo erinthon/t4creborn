@@ -41,6 +41,15 @@ public:
 	/** Servidor: ativa redução de dano por um tempo (Parry). Fraction 0..1. */
 	void ApplyTempDamageReduction(float Fraction, float Duration);
 
+	/** Servidor: define os bônus do equipamento (armadura e dano de arma). */
+	void SetEquipment(float InArmor, float InWeaponDamageBonus);
+
+	UFUNCTION(BlueprintPure, Category = "T4C|Attributes")
+	float GetArmor() const { return Armor; }
+
+	UFUNCTION(BlueprintPure, Category = "T4C|Attributes")
+	float GetWeaponDamageBonus() const { return WeaponDamageBonus; }
+
 	UFUNCTION(BlueprintPure, Category = "T4C|Attributes")
 	bool IsAlive() const { return Health > 0.f; }
 
@@ -78,6 +87,14 @@ protected:
 
 	UPROPERTY(Replicated, VisibleAnywhere, Category = "T4C|Attributes")
 	float MaxMana = 50.f;
+
+	/** Redução plana de dano vinda da armadura equipada (servidor escreve). */
+	UPROPERTY(Replicated, VisibleAnywhere, Category = "T4C|Attributes")
+	float Armor = 0.f;
+
+	/** Bônus de dano vindo da arma equipada (servidor escreve). */
+	UPROPERTY(Replicated, VisibleAnywhere, Category = "T4C|Attributes")
+	float WeaponDamageBonus = 0.f;
 
 	UFUNCTION()
 	void OnRep_Health(float OldHealth);

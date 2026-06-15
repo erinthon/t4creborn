@@ -125,9 +125,11 @@ void AT4CMonster::HandleDeath(AActor* Killer)
 		}
 	}
 
-	// Pede ao GameMode para respawnar um novo monstro neste ponto.
+	// Pede ao GameMode para respawnar um novo monstro neste ponto e dropar loot
+	// no local exato da morte.
 	if (AT4CGameMode* GM = GetWorld()->GetAuthGameMode<AT4CGameMode>())
 	{
+		GM->DropLoot(GetActorLocation());
 		GM->OnMonsterKilled(SpawnLocation);
 	}
 

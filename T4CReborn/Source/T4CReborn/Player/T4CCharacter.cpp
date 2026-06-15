@@ -3,6 +3,9 @@
 #include "Attributes/T4CAbilityData.h"
 #include "Combat/T4CProjectile.h"
 #include "Core/T4CPlayerState.h"
+#include "Items/T4CInventoryComponent.h"
+#include "Items/T4CLootPickup.h"
+#include "EngineUtils.h"
 #include "GameFramework/SpringArmComponent.h"
 #include "Camera/CameraComponent.h"
 #include "Core/T4CGameMode.h"
@@ -72,6 +75,11 @@ void AT4CCharacter::PossessedBy(AController* NewController)
 			{
 				AttributeComponent->RecalculateDerivedStats(PS->GetPrimaryStats(), /*bRefill=*/true);
 			}
+			// Reaplica bônus do equipamento ao novo pawn (inventário persiste no PlayerState).
+			if (UT4CInventoryComponent* Inv = PS->GetInventory())
+			{
+				Inv->RefreshEquipmentBonuses();
+			}
 		}
 		UE_LOG(LogTemp, Display, TEXT("[T4C] %s nasceu em %s"), *GetName(), *GetActorLocation().ToString());
 	}
@@ -108,6 +116,69 @@ void AT4CCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCompon
 
 	// Recomeçar / trocar de classe (tecla R).
 	PlayerInputComponent->BindAction(TEXT("ResetClass"), IE_Pressed, this, &AT4CCharacter::ResetClass);
+
+	// Loot: F coleta o drop próximo; G usa uma poção.
+	PlayerInputComponent->BindAction(TEXT("Interact"), IE_Pressed, this, &AT4CCharacter::Interact);
+	PlayerInputComponent->BindAction(TEXT("UsePotion"), IE_Pressed, this, &AT4CCharacter::UsePotion);
+}
+
+void AT4CCharacter::Interact()
+{
+	ServerInteract();
+}
+
+void AT4CCharacter::ServerInteract_Implementation()
+{
+	// Acha o saco de loot mais próximo dentro do alcance de coleta.
+	AT4CLootPickup* Nearest = nullptr;
+	float BestDistSq = TNumericLimits<float>::Max();
+	const FVector MyLoc = GetActorLocation();
+
+	for (TActorIterator<AT4CLootPickup> It(GetWorld()); It; ++It)
+	{
+		AT4CLootPickup* Pickup = *It;
+		if (!Pickup || Pickup->IsActorBeingDestroyed())
+		{
+			continue;
+		}
+		const float DistSq = FVector::DistSquared(MyLoc, Pickup->GetActorLocation());
+		const float Reach = Pickup->GetPickupRadius();
+		if (DistSq <= Reach * Reach && DistSq < BestDistSq)
+		{
+			BestDistSq = DistSq;
+			Nearest = Pickup;
+		}
+	}
+
+	if (!Nearest)
+	{
+		return;
+	}
+
+	if (AT4CPlayerState* PS = GetPlayerState<AT4CPlayerState>())
+	{
+		if (UT4CInventoryComponent* Inv = PS->GetInventory())
+		{
+			Inv->AddItem(Nearest->GetItem());
+			Nearest->Destroy();
+		}
+	}
+}
+
+void AT4CCharacter::UsePotion()
+{
+	ServerUsePotion();
+}
+
+void AT4CCharacter::ServerUsePotion_Implementation()
+{
+	if (AT4CPlayerState* PS = GetPlayerState<AT4CPlayerState>())
+	{
+		if (UT4CInventoryComponent* Inv = PS->GetInventory())
+		{
+			Inv->UseFirstPotion();
+		}
+	}
 }
 
 void AT4CCharacter::ResetClass()
@@ -251,7 +322,9 @@ void AT4CCharacter::ServerUseAbility_Implementation(int32 Slot)
 		else if (Ability.Name.Contains(TEXT("Power Shot"))) Color = FLinearColor(0.3f, 1.0f, 0.35f);
 		const float Scale = 0.35f + Ability.Power * 0.12f;
 
-		SpawnAttackProjectile(BaseWeaponDamage * OffenseMul * Ability.Power, Color, Scale);
+		// A arma equipada soma ao dano base antes da escala de atributo/habilidade.
+		const float WeaponBase = BaseWeaponDamage + AttributeComponent->GetWeaponDamageBonus();
+		SpawnAttackProjectile(WeaponBase * OffenseMul * Ability.Power, Color, Scale);
 		break;
 	}
 	case ET4CAbilityKind::Heal:
