@@ -1,0 +1,14 @@
+# Configurações locais do Claude Code
+.claude/
+
+# Unreal Engine — gerados / binários (também coberto em T4CReborn/.gitignore)
+T4CReborn/Binaries/
+T4CReborn/DerivedDataCache/
+T4CReborn/Intermediate/
+T4CReborn/Saved/
+T4CReborn/.vs/
+*.sln
+
+# OS
+Thumbs.db
+.DS_Store
