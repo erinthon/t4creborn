@@ -21,5 +21,5 @@ public:
 protected:
 	/** Distância máxima para o monstro notar/perseguir um jogador. */
 	UPROPERTY(EditDefaultsOnly, Category = "T4C|AI")
-	float AggroRadius = 2500.f;
+	float AggroRadius = 1000.f;
 };

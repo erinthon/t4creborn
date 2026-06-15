@@ -49,10 +49,10 @@ protected:
 	float AttackRange = 200.f;
 
 	UPROPERTY(EditDefaultsOnly, Category = "T4C|Combat")
-	float AttackCooldown = 1.5f;
+	float AttackCooldown = 2.0f;
 
 	UPROPERTY(EditDefaultsOnly, Category = "T4C|Combat")
-	float BaseDamage = 8.f;
+	float BaseDamage = 6.f;
 
 	UPROPERTY(EditDefaultsOnly, Category = "T4C|Progression")
 	int32 XPReward = 50;

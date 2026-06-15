@@ -2,8 +2,10 @@
 #include "Player/T4CCharacter.h"
 #include "Core/T4CPlayerState.h"
 #include "Attributes/T4CAttributeComponent.h"
+#include "AI/T4CMonster.h"
 #include "Engine/Canvas.h"
 #include "Engine/Font.h"
+#include "EngineUtils.h"
 
 void AT4CHUD::DrawHUD()
 {
@@ -84,6 +86,33 @@ void AT4CHUD::DrawHUD()
 	{
 		DrawText(FString::Printf(TEXT("Pontos a distribuir: %d  -  [1]STR [2]END [3]AGI [4]INT [5]WIS"), Unspent),
 			Gold, 30.f, TY, nullptr, 1.1f);
+	}
+
+	// --- Barras de vida flutuantes sobre os monstros (feedback de combate) ---
+	for (TActorIterator<AT4CMonster> It(GetWorld()); It; ++It)
+	{
+		AT4CMonster* Monster = *It;
+		UT4CAttributeComponent* MAttr = Monster ? Monster->GetAttributeComponent() : nullptr;
+		if (!MAttr || !MAttr->IsAlive())
+		{
+			continue;
+		}
+
+		const FVector Head = Monster->GetActorLocation() + FVector(0.f, 0.f, 130.f);
+		const FVector ScreenPos = Project(Head);
+		if (ScreenPos.Z <= 0.f)
+		{
+			continue; // atrás da câmera
+		}
+
+		const float MBarW = 70.f;
+		const float MBarH = 7.f;
+		const float MPct = MAttr->GetMaxHealth() > 0.f ? MAttr->GetHealth() / MAttr->GetMaxHealth() : 0.f;
+		const float MX = ScreenPos.X - MBarW * 0.5f;
+		const float MY = ScreenPos.Y;
+		DrawRect(FLinearColor(0.f, 0.f, 0.f, 0.7f), MX - 1.f, MY - 1.f, MBarW + 2.f, MBarH + 2.f);
+		DrawRect(FLinearColor(0.2f, 0.05f, 0.05f, 0.9f), MX, MY, MBarW, MBarH);
+		DrawRect(FLinearColor(0.9f, 0.15f, 0.15f, 1.f), MX, MY, MBarW * FMath::Clamp(MPct, 0.f, 1.f), MBarH);
 	}
 
 	// --- Dica de controles (canto inferior direito) ---

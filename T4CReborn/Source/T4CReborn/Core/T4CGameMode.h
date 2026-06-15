@@ -20,8 +20,15 @@ public:
 
 	virtual void BeginPlay() override;
 
+	/** Distribui os jogadores entre os PlayerStarts (round-robin), evitando
+	 *  que dois nasçam no mesmo ponto e se empurrem. */
+	virtual AActor* ChoosePlayerStart_Implementation(AController* Player) override;
+
 	/** Chamado por um monstro ao morrer; agenda um respawn no mesmo ponto. */
 	void OnMonsterKilled(const FVector& SpawnLocation);
+
+	/** Respawna um jogador morto em um PlayerStart. */
+	void RespawnPlayer(AController* Controller);
 
 protected:
 	/** Classe de monstro a spawnar (default: AT4CMonster). */
@@ -37,4 +44,7 @@ protected:
 	float MonsterRespawnDelay = 5.f;
 
 	void SpawnMonster(FVector Location);
+
+private:
+	int32 NextStartIndex = 0;
 };

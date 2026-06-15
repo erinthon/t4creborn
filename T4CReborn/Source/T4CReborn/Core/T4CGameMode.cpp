@@ -6,6 +6,8 @@
 #include "AI/T4CMonster.h"
 #include "UI/T4CHUD.h"
 #include "TimerManager.h"
+#include "GameFramework/PlayerStart.h"
+#include "EngineUtils.h"
 
 AT4CGameMode::AT4CGameMode()
 {
@@ -17,12 +19,13 @@ AT4CGameMode::AT4CGameMode()
 
 	MonsterClass = AT4CMonster::StaticClass();
 
-	// Pontos de spawn espalhados pela arena de teste (chão ~5000x5000).
+	// Pontos de spawn afastados dos PlayerStarts (jogadores em y=+-300),
+	// para o jogador se aproximar e engajar 1 de cada vez, sem ser cercado no spawn.
 	MonsterSpawnPoints = {
-		FVector(800.f, 0.f, 120.f),
-		FVector(-800.f, 400.f, 120.f),
-		FVector(400.f, -900.f, 120.f),
-		FVector(-600.f, -600.f, 120.f)
+		FVector(1900.f, 0.f, 120.f),
+		FVector(-1900.f, 700.f, 120.f),
+		FVector(900.f, -2000.f, 120.f),
+		FVector(-1200.f, -1600.f, 120.f)
 	};
 }
 
@@ -34,6 +37,25 @@ void AT4CGameMode::BeginPlay()
 	{
 		SpawnMonster(Point);
 	}
+}
+
+AActor* AT4CGameMode::ChoosePlayerStart_Implementation(AController* Player)
+{
+	TArray<APlayerStart*> Starts;
+	for (TActorIterator<APlayerStart> It(GetWorld()); It; ++It)
+	{
+		Starts.Add(*It);
+	}
+
+	if (Starts.Num() == 0)
+	{
+		return Super::ChoosePlayerStart_Implementation(Player);
+	}
+
+	// Round-robin: garante pontos distintos para jogadores consecutivos.
+	APlayerStart* Chosen = Starts[NextStartIndex % Starts.Num()];
+	NextStartIndex++;
+	return Chosen;
 }
 
 void AT4CGameMode::SpawnMonster(FVector Location)
@@ -48,6 +70,16 @@ void AT4CGameMode::SpawnMonster(FVector Location)
 	AT4CMonster* Spawned = GetWorld()->SpawnActor<AT4CMonster>(MonsterClass, Location, FRotator::ZeroRotator, Params);
 	UE_LOG(LogTemp, Display, TEXT("[T4C] Monstro spawnado em %s (%s)"),
 		*Location.ToString(), Spawned ? TEXT("ok") : TEXT("FALHOU"));
+}
+
+void AT4CGameMode::RespawnPlayer(AController* Controller)
+{
+	if (!Controller)
+	{
+		return;
+	}
+	RestartPlayer(Controller);
+	UE_LOG(LogTemp, Display, TEXT("[T4C] Jogador respawnado: %s"), *Controller->GetName());
 }
 
 void AT4CGameMode::OnMonsterKilled(const FVector& SpawnLocation)

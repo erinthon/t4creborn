@@ -3,10 +3,12 @@
 #include "Core/T4CPlayerState.h"
 #include "GameFramework/SpringArmComponent.h"
 #include "Camera/CameraComponent.h"
+#include "Core/T4CGameMode.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Components/CapsuleComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "UObject/ConstructorHelpers.h"
+#include "TimerManager.h"
 
 AT4CCharacter::AT4CCharacter()
 {
@@ -67,6 +69,7 @@ void AT4CCharacter::PossessedBy(AController* NewController)
 				AttributeComponent->RecalculateDerivedStats(PS->GetPrimaryStats(), /*bRefill=*/true);
 			}
 		}
+		UE_LOG(LogTemp, Display, TEXT("[T4C] %s nasceu em %s"), *GetName(), *GetActorLocation().ToString());
 	}
 }
 
@@ -150,6 +153,8 @@ void AT4CCharacter::ServerAttack_Implementation()
 
 	GetWorld()->SweepMultiByChannel(Hits, Start, End, FQuat::Identity, ECC_Pawn, Sphere, Params);
 
+	UE_LOG(LogTemp, Verbose, TEXT("[T4C] ServerAttack de %s | hits=%d"), *GetName(), Hits.Num());
+
 	// Dano = ArmaBase * (1 + STR * DamagePerStrength)   (GDD seção 2)
 	float StrMultiplier = 1.f;
 	if (const AT4CPlayerState* PS = GetPlayerState<AT4CPlayerState>())
@@ -197,7 +202,33 @@ void AT4CCharacter::HandleDeath(AActor* Killer)
 		}
 	}
 
-	// Desabilita colisão e movimento; respawn fica para o GameMode (Fase 2).
+	// Desabilita colisão e movimento do pawn morto.
 	GetCharacterMovement()->DisableMovement();
 	GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+
+	// Respawn do jogador após um atraso (morte não é permanente).
+	if (HasAuthority())
+	{
+		if (AController* C = GetController())
+		{
+			if (C->IsPlayerController())
+			{
+				UE_LOG(LogTemp, Display, TEXT("[T4C] %s morreu; respawn em 3s"), *C->GetName());
+				TWeakObjectPtr<AController> WeakC = C;
+				FTimerHandle Handle;
+				FTimerDelegate Del = FTimerDelegate::CreateWeakLambda(this, [this, WeakC]()
+				{
+					UWorld* World = GetWorld();
+					AT4CGameMode* GM = World ? World->GetAuthGameMode<AT4CGameMode>() : nullptr;
+					// Remove o pawn morto primeiro, para o respawn nascer limpo num PlayerStart.
+					Destroy();
+					if (GM && WeakC.IsValid())
+					{
+						GM->RespawnPlayer(WeakC.Get());
+					}
+				});
+				GetWorldTimerManager().SetTimer(Handle, Del, 3.0f, false);
+			}
+		}
+	}
 }
