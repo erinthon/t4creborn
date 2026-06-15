@@ -3,8 +3,10 @@
 #include "Player/T4CCharacter.h"
 #include "Components/SphereComponent.h"
 #include "Components/StaticMeshComponent.h"
+#include "Components/PointLightComponent.h"
 #include "GameFramework/ProjectileMovementComponent.h"
 #include "UObject/ConstructorHelpers.h"
+#include "Net/UnrealNetwork.h"
 
 AT4CProjectile::AT4CProjectile()
 {
@@ -29,8 +31,14 @@ AT4CProjectile::AT4CProjectile()
 	if (SphereMesh.Succeeded())
 	{
 		Mesh->SetStaticMesh(SphereMesh.Object);
-		Mesh->SetRelativeScale3D(FVector(0.35f));
+		Mesh->SetRelativeScale3D(FVector(0.45f));
 	}
+
+	Light = CreateDefaultSubobject<UPointLightComponent>(TEXT("Light"));
+	Light->SetupAttachment(Collision);
+	Light->SetIntensity(3000.f);
+	Light->SetAttenuationRadius(450.f);
+	Light->SetCastShadows(false);
 
 	Movement = CreateDefaultSubobject<UProjectileMovementComponent>(TEXT("Movement"));
 	Movement->InitialSpeed = 2600.f;
@@ -39,9 +47,18 @@ AT4CProjectile::AT4CProjectile()
 	Movement->bRotationFollowsVelocity = true;
 }
 
+void AT4CProjectile::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
+{
+	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+	DOREPLIFETIME(AT4CProjectile, ProjColor);
+	DOREPLIFETIME(AT4CProjectile, ProjScale);
+}
+
 void AT4CProjectile::BeginPlay()
 {
 	Super::BeginPlay();
+
+	ApplyVisual();
 
 	// Não colidir com quem disparou.
 	if (AActor* Inst = GetInstigator())
@@ -52,6 +69,20 @@ void AT4CProjectile::BeginPlay()
 	if (HasAuthority())
 	{
 		Collision->OnComponentHit.AddDynamic(this, &AT4CProjectile::OnHit);
+	}
+}
+
+void AT4CProjectile::ApplyVisual()
+{
+	if (Light)
+	{
+		Light->SetLightColor(ProjColor);
+	}
+	if (Mesh)
+	{
+		Mesh->SetRelativeScale3D(FVector(ProjScale));
+		// Tinta o material (se expuser parâmetro de cor) para reforçar o elemento.
+		Mesh->SetVectorParameterValueOnMaterials(TEXT("Color"), FVector(ProjColor.R, ProjColor.G, ProjColor.B));
 	}
 }
 

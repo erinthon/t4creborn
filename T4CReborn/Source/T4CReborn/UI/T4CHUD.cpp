@@ -172,8 +172,8 @@ void AT4CHUD::DrawHUD()
 	}
 
 	// --- Dica de controles (canto inferior direito) ---
-	DrawText(TEXT("WASD mover | Mouse olhar | LMB atacar | Q/E habilidades"),
-		FLinearColor(0.8f, 0.8f, 0.8f, 1.f), W - 540.f, H - 24.f, nullptr, 1.0f);
+	DrawText(TEXT("WASD mover | Mouse olhar | Q/E habilidades | R trocar classe"),
+		FLinearColor(0.8f, 0.8f, 0.8f, 1.f), W - 560.f, H - 24.f, nullptr, 1.0f);
 }
 
 void AT4CHUD::DrawBar(float X, float Y, float W, float H, float Pct,

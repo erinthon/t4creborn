@@ -3,8 +3,29 @@
 
 UT4CAttributeComponent::UT4CAttributeComponent()
 {
-	PrimaryComponentTick.bCanEverTick = false;
+	PrimaryComponentTick.bCanEverTick = true;
+	PrimaryComponentTick.TickInterval = 0.25f; // regen 4x por segundo, barato
 	SetIsReplicatedByDefault(true);
+}
+
+void UT4CAttributeComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
+{
+	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
+
+	// Regeneração só no servidor (autoritativo); clientes recebem via replicação.
+	if (GetOwnerRole() != ROLE_Authority || bIsDead)
+	{
+		return;
+	}
+
+	if (Mana < MaxMana)
+	{
+		Mana = FMath::Clamp(Mana + Balance.ManaRegenPerSec * DeltaTime, 0.f, MaxMana);
+	}
+	if (Health < MaxHealth)
+	{
+		Health = FMath::Clamp(Health + Balance.HealthRegenPerSec * DeltaTime, 0.f, MaxHealth);
+	}
 }
 
 void UT4CAttributeComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const

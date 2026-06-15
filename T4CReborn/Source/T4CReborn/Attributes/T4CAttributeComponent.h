@@ -24,6 +24,7 @@ public:
 	UT4CAttributeComponent();
 
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
+	virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
 
 	/** Recalcula MaxHealth/MaxMana a partir dos atributos. Servidor apenas. */
 	void RecalculateDerivedStats(const FT4CPrimaryStats& Stats, bool bRefill);

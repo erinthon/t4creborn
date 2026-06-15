@@ -48,6 +48,10 @@ public:
 	UFUNCTION(Server, Reliable)
 	void ServerSelectClass(ET4CClass Class);
 
+	/** Cliente → servidor: recomeça o personagem (volta ao menu de classes). */
+	UFUNCTION(Server, Reliable)
+	void ServerResetClass();
+
 	UFUNCTION(BlueprintPure, Category = "T4C|Progression")
 	bool HasChosenClass() const { return bHasChosenClass; }
 

@@ -85,7 +85,6 @@ void AT4CCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCompon
 	PlayerInputComponent->BindAxis(TEXT("MoveRight"), this, &AT4CCharacter::MoveRight);
 	PlayerInputComponent->BindAxis(TEXT("Turn"), this, &AT4CCharacter::Turn);
 	PlayerInputComponent->BindAxis(TEXT("LookUp"), this, &AT4CCharacter::LookUpAt);
-	PlayerInputComponent->BindAction(TEXT("Attack"), IE_Pressed, this, &AT4CCharacter::Attack);
 
 	// Teclas 1-5: distribuem atributos (após classe) E selecionam classe (antes).
 	PlayerInputComponent->BindAction(TEXT("Slot1"), IE_Pressed, this, &AT4CCharacter::AllocStrength);
@@ -106,6 +105,17 @@ void AT4CCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCompon
 	// Habilidades de classe: Q (slot 0) e E (slot 1).
 	PlayerInputComponent->BindAction(TEXT("Ability1"), IE_Pressed, this, &AT4CCharacter::UseAbility0);
 	PlayerInputComponent->BindAction(TEXT("Ability2"), IE_Pressed, this, &AT4CCharacter::UseAbility1);
+
+	// Recomeçar / trocar de classe (tecla R).
+	PlayerInputComponent->BindAction(TEXT("ResetClass"), IE_Pressed, this, &AT4CCharacter::ResetClass);
+}
+
+void AT4CCharacter::ResetClass()
+{
+	if (AT4CPlayerState* PS = GetPlayerState<AT4CPlayerState>())
+	{
+		PS->ServerResetClass();
+	}
 }
 
 void AT4CCharacter::AllocateStat(ET4CAttribute Attribute)
@@ -162,45 +172,7 @@ void AT4CCharacter::LookUpAt(float Value)
 	AddControllerPitchInput(Value);
 }
 
-void AT4CCharacter::Attack()
-{
-	// Input é local; a resolução do golpe acontece no servidor.
-	ServerAttack();
-}
-
-void AT4CCharacter::ServerAttack_Implementation()
-{
-	if (!AttributeComponent || !AttributeComponent->IsAlive())
-	{
-		return;
-	}
-
-	// Cooldown de ataque.
-	const float Now = GetWorld()->GetTimeSeconds();
-	if (Now - LastAttackTime < AttackCooldown)
-	{
-		return;
-	}
-	LastAttackTime = Now;
-
-	if (!ProjectileClass)
-	{
-		return;
-	}
-
-	// Dano = ArmaBase * (1 + atributo ofensivo * DamagePerStrength)
-	float OffenseMul = 1.f;
-	if (const AT4CPlayerState* PS = GetPlayerState<AT4CPlayerState>())
-	{
-		const FT4CPrimaryStats& S = PS->GetPrimaryStats();
-		const int32 Offense = FMath::Max(S.Strength, S.Intelligence);
-		OffenseMul = 1.f + Offense * AttributeComponent->Balance.DamagePerStrength;
-	}
-
-	SpawnAttackProjectile(BaseWeaponDamage * OffenseMul);
-}
-
-void AT4CCharacter::SpawnAttackProjectile(float Damage)
+void AT4CCharacter::SpawnAttackProjectile(float Damage, FLinearColor Color, float Scale)
 {
 	if (!ProjectileClass)
 	{
@@ -212,22 +184,24 @@ void AT4CCharacter::SpawnAttackProjectile(float Damage)
 	const FRotator AimRot(0.f, GetControlRotation().Yaw, 0.f);
 	const FVector Dir = AimRot.Vector();
 	const FVector Muzzle = GetActorLocation() + Dir * 90.f + FVector(0.f, 0.f, 30.f);
+	const FTransform SpawnTM(AimRot, Muzzle);
 
-	FActorSpawnParameters SpawnParams;
-	SpawnParams.Owner = this;
-	SpawnParams.Instigator = this;
-	SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
-
-	if (AT4CProjectile* Projectile = GetWorld()->SpawnActor<AT4CProjectile>(ProjectileClass, Muzzle, AimRot, SpawnParams))
+	// Deferred: define dano/cor/escala antes do BeginPlay (replicam como estado inicial).
+	if (AT4CProjectile* Projectile = GetWorld()->SpawnActorDeferred<AT4CProjectile>(
+		ProjectileClass, SpawnTM, this, this,
+		ESpawnActorCollisionHandlingMethod::AlwaysSpawn))
 	{
 		Projectile->SetDamage(Damage);
+		Projectile->SetVisual(Color, Scale);
+		Projectile->FinishSpawning(SpawnTM);
 	}
 }
 
 void AT4CCharacter::UseAbility(int32 Slot)
 {
-	// Predição local do cooldown para feedback imediato no HUD.
-	if (Slot >= 0 && Slot <= 1 && GetWorld())
+	// Predição local de cooldown SÓ no cliente remoto. No host (autoridade) o
+	// servidor cuida — predizer aqui faria o próprio check do servidor bloquear.
+	if (!HasAuthority() && Slot >= 0 && Slot <= 1 && GetWorld())
 	{
 		LastAbilityTime[Slot] = GetWorld()->GetTimeSeconds();
 	}
@@ -249,19 +223,15 @@ void AT4CCharacter::ServerUseAbility_Implementation(int32 Slot)
 
 	const FT4CAbility Ability = T4CAbilities::Get(PS->GetChosenClass(), Slot);
 
-	// Cooldown.
 	const float Now = GetWorld()->GetTimeSeconds();
 	if (Now - LastAbilityTime[Slot] < Ability.Cooldown)
 	{
 		return;
 	}
-
-	// Custo de mana.
 	if (!AttributeComponent->SpendMana(Ability.ManaCost))
 	{
 		return;
 	}
-
 	LastAbilityTime[Slot] = Now;
 
 	const FT4CPrimaryStats& S = PS->GetPrimaryStats();
@@ -269,9 +239,19 @@ void AT4CCharacter::ServerUseAbility_Implementation(int32 Slot)
 	{
 	case ET4CAbilityKind::Projectile:
 	{
-		const int32 Offense = FMath::Max(S.Strength, S.Intelligence);
+		// Dano escala com o melhor atributo ofensivo (STR/INT/WIS).
+		const int32 Offense = FMath::Max3(S.Strength, S.Intelligence, S.Wisdom);
 		const float OffenseMul = 1.f + Offense * AttributeComponent->Balance.DamagePerStrength;
-		SpawnAttackProjectile(BaseWeaponDamage * OffenseMul * Ability.Power);
+
+		// Cor por elemento/perícia.
+		FLinearColor Color(0.9f, 0.9f, 1.0f); // físico: branco-aço
+		if (Ability.Name.Contains(TEXT("Fire")))            Color = FLinearColor(1.0f, 0.35f, 0.05f);
+		else if (Ability.Name.Contains(TEXT("Smite")))      Color = FLinearColor(1.0f, 0.85f, 0.25f);
+		else if (Ability.Name.Contains(TEXT("Backstab")))   Color = FLinearColor(0.6f, 0.1f, 0.85f);
+		else if (Ability.Name.Contains(TEXT("Power Shot"))) Color = FLinearColor(0.3f, 1.0f, 0.35f);
+		const float Scale = 0.35f + Ability.Power * 0.12f;
+
+		SpawnAttackProjectile(BaseWeaponDamage * OffenseMul * Ability.Power, Color, Scale);
 		break;
 	}
 	case ET4CAbilityKind::Heal:

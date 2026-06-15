@@ -49,7 +49,6 @@ protected:
 	void MoveRight(float Value);
 	void Turn(float Value);
 	void LookUpAt(float Value);
-	void Attack();
 
 	// Distribuição de pontos de atributo (teclas 1-5, após escolher classe).
 	void AllocateStat(ET4CAttribute Attribute);
@@ -70,21 +69,16 @@ protected:
 	void SelectClass6() { SelectClass(6); }
 	void SelectClass7() { SelectClass(7); }
 
-	/** Dano base da arma desarmada/inicial. */
+	/** Recomeçar: volta ao menu de classes (tecla R). */
+	void ResetClass();
+
+	/** Dano base usado pelas habilidades de projétil. */
 	UPROPERTY(EditDefaultsOnly, Category = "Combat")
 	float BaseWeaponDamage = 12.f;
 
-	/** Intervalo mínimo entre ataques (s). */
-	UPROPERTY(EditDefaultsOnly, Category = "Combat")
-	float AttackCooldown = 0.4f;
-
-	/** Projétil disparado ao atacar. */
+	/** Projétil disparado pelas habilidades. */
 	UPROPERTY(EditDefaultsOnly, Category = "Combat")
 	TSubclassOf<class AT4CProjectile> ProjectileClass;
-
-	/** Cliente → servidor: solicita um ataque (dispara um projétil). */
-	UFUNCTION(Server, Reliable)
-	void ServerAttack();
 
 	// Habilidades de classe (Q = slot 0, E = slot 1).
 	void UseAbility0() { UseAbility(0); }
@@ -102,8 +96,8 @@ public:
 	float GetAbilityCooldownRemaining(int32 Slot) const;
 
 protected:
-	/** Servidor: dispara um projétil para frente com o dano dado. */
-	void SpawnAttackProjectile(float Damage);
+	/** Servidor: dispara um projétil para frente, com dano, cor e tamanho. */
+	void SpawnAttackProjectile(float Damage, FLinearColor Color, float Scale);
 
 	/** Servidor: reage à morte deste personagem. */
 	UFUNCTION()
@@ -111,6 +105,5 @@ protected:
 
 private:
 	bool bDeadHandled = false;
-	float LastAttackTime = -100.f;
 	float LastAbilityTime[2] = { -100.f, -100.f };
 };

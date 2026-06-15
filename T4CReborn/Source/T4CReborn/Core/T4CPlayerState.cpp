@@ -40,6 +40,26 @@ void AT4CPlayerState::ServerSelectClass_Implementation(ET4CClass Class)
 	OnStatsChanged.Broadcast();
 }
 
+void AT4CPlayerState::ServerResetClass_Implementation()
+{
+	if (!HasAuthority())
+	{
+		return;
+	}
+
+	bHasChosenClass = false;
+	CharacterLevel = 1;
+	Experience = 0;
+	UnspentStatPoints = 0;
+	UnspentSkillPoints = 0;
+	PrimaryStats = FT4CPrimaryStats(); // volta aos 10 padrão
+
+	UE_LOG(LogTemp, Display, TEXT("[T4C] %s recomeçou (escolher classe)"), *GetPlayerName());
+
+	PushDerivedStatsToPawn(/*bRefill=*/true);
+	OnStatsChanged.Broadcast();
+}
+
 int32 AT4CPlayerState::GetXPForNextLevel() const
 {
 	// Curva simples (placeholder): cresce linearmente com o nível.

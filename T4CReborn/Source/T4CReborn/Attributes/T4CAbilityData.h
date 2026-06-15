@@ -55,14 +55,14 @@ namespace T4CAbilities
 			return Slot == 0 ? FT4CAbility(TEXT("Power Shot"), K::Projectile, 2.5f, 0.f, 2.8f)
 			                 : FT4CAbility(TEXT("Parry"), K::Parry, 8.f, 0.f, 0.4f, 3.f);
 		case ET4CClass::Cleric:
-			return Slot == 0 ? FT4CAbility(TEXT("Heal"), K::Heal, 5.f, 12.f, 25.f)
-			                 : FT4CAbility(TEXT("Parry"), K::Parry, 8.f, 0.f, 0.5f, 4.f);
+			return Slot == 0 ? FT4CAbility(TEXT("Smite"), K::Projectile, 2.f, 8.f, 2.2f)
+			                 : FT4CAbility(TEXT("Heal"), K::Heal, 6.f, 12.f, 25.f);
 		case ET4CClass::Rogue:
 			return Slot == 0 ? FT4CAbility(TEXT("Backstab"), K::Projectile, 2.5f, 0.f, 3.0f)
 			                 : FT4CAbility(TEXT("Parry"), K::Parry, 7.f, 0.f, 0.4f, 3.f);
 		case ET4CClass::Healer:
-			return Slot == 0 ? FT4CAbility(TEXT("Heal"), K::Heal, 4.f, 10.f, 30.f)
-			                 : FT4CAbility(TEXT("Greater Heal"), K::Heal, 10.f, 25.f, 70.f);
+			return Slot == 0 ? FT4CAbility(TEXT("Smite"), K::Projectile, 2.f, 8.f, 1.8f)
+			                 : FT4CAbility(TEXT("Greater Heal"), K::Heal, 8.f, 25.f, 70.f);
 		default:
 			return FT4CAbility(TEXT("Powerful Blow"), K::Projectile, 3.f, 0.f, 2.5f);
 		}

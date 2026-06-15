@@ -94,6 +94,13 @@ struct FT4CBalanceConstants
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "T4C|Balance")
 	float DamagePerStrength = 0.05f;
 
+	// Regeneração por segundo (mana mais rápida que vida).
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "T4C|Balance")
+	float ManaRegenPerSec = 7.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "T4C|Balance")
+	float HealthRegenPerSec = 2.f;
+
 	// Pontos concedidos por nível (fiel ao T4C: 5 atributo / 15 perícia).
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "T4C|Balance")
 	int32 StatPointsPerLevel = 5;
