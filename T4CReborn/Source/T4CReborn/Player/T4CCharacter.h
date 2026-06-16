@@ -97,20 +97,24 @@ protected:
 	void OnAbilityQPressed();
 	void OnAbilityEPressed();
 
-	// --- Loot / inventário ---
-	/** Tecla F: coleta o saco de loot mais próximo dentro do alcance. */
-	void Interact();
-
+	// --- Loot / inventário / NPC (RPCs; handlers de input são públicos abaixo) ---
 	UFUNCTION(Server, Reliable)
 	void ServerInteract();
-
-	/** Tecla G: usa a primeira poção do inventário. */
-	void UsePotion();
 
 	UFUNCTION(Server, Reliable)
 	void ServerUsePotion();
 
+	UFUNCTION(Server, Reliable)
+	void ServerBuy();
+
 public:
+	/** Tecla F: coleta loot próximo ou interage com o NPC mais próximo. */
+	void Interact();
+	/** Tecla G: usa a primeira poção do inventário. */
+	void UsePotion();
+	/** Tecla B: compra uma poção do mercador próximo. */
+	void Buy();
+
 	/** Para o HUD: nome da habilidade no slot (0=Q, 1=E). */
 	FString GetAbilityName(int32 Slot) const;
 

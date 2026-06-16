@@ -6,6 +6,7 @@
 #include "Attributes/T4CClassData.h"
 #include "Items/T4CInventoryComponent.h"
 #include "Items/T4CLootPickup.h"
+#include "NPC/T4CNpc.h"
 #include "Engine/Canvas.h"
 #include "Engine/Font.h"
 #include "EngineUtils.h"
@@ -114,7 +115,12 @@ void AT4CHUD::DrawHUD()
 	{
 		DrawText(FString::Printf(TEXT("Pontos a distribuir: %d  -  [1]STR [2]END [3]AGI [4]INT [5]WIS"), Unspent),
 			Gold, 30.f, TY, nullptr, 1.1f);
+		TY += 24.f;
 	}
+
+	// Ouro + pontos de perícia (economia / treinador).
+	DrawText(FString::Printf(TEXT("Ouro: %d     Pericia: %d"), PS->GetGold(), PS->GetUnspentSkillPoints()),
+		FLinearColor(1.f, 0.85f, 0.2f, 1.f), 30.f, TY, nullptr, 1.1f);
 
 	// --- Inventário e equipamento (canto superior direito) ---
 	if (UT4CInventoryComponent* Inv = PS->GetInventory())
@@ -168,6 +174,33 @@ void AT4CHUD::DrawHUD()
 		{
 			const FString Prompt = FString::Printf(TEXT("[F] Pegar: %s"), *NearestLoot->GetItem().Name);
 			DrawText(Prompt, NearestLoot->GetItem().RarityColor(), W * 0.5f - 110.f, H * 0.62f, nullptr, 1.3f);
+		}
+	}
+
+	// --- Prompt de NPC próximo (mercador / treinador) ---
+	{
+		AT4CNpc* NearestNpc = nullptr;
+		float BestDistSq = TNumericLimits<float>::Max();
+		const FVector MyLoc = Char->GetActorLocation();
+		for (TActorIterator<AT4CNpc> It(GetWorld()); It; ++It)
+		{
+			AT4CNpc* Npc = *It;
+			if (!Npc) continue;
+			const float DistSq = FVector::DistSquared(MyLoc, Npc->GetActorLocation());
+			const float Reach = Npc->GetInteractRadius();
+			if (DistSq <= Reach * Reach && DistSq < BestDistSq)
+			{
+				BestDistSq = DistSq;
+				NearestNpc = Npc;
+			}
+		}
+		if (NearestNpc)
+		{
+			const bool bMerchant = NearestNpc->GetNpcType() == ET4CNpcType::Merchant;
+			const FString Prompt = bMerchant
+				? TEXT("Mercador  -  [F] Vender tudo   [B] Comprar Pocao")
+				: FString::Printf(TEXT("Treinador  -  [F] Treinar (custo %d pericia)"), AT4CPlayerState::TrainCostSkillPoints);
+			DrawText(Prompt, FLinearColor(1.f, 0.9f, 0.5f, 1.f), W * 0.5f - 180.f, H * 0.66f, nullptr, 1.3f);
 		}
 	}
 

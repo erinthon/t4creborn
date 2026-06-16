@@ -6,6 +6,7 @@
 
 class AT4CMonster;
 class AT4CLootPickup;
+class AT4CNpc;
 
 /**
  * Regras de partida de Althea. Existe SOMENTE no servidor.
@@ -54,6 +55,10 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = "T4C|Loot")
 	TSubclassOf<AT4CLootPickup> LootPickupClass;
 
+	/** Ator de NPC da vila (default: AT4CNpc). */
+	UPROPERTY(EditDefaultsOnly, Category = "T4C|Village")
+	TSubclassOf<AT4CNpc> NpcClass;
+
 	/** Chance (0..1) de um monstro dropar loot ao morrer. */
 	UPROPERTY(EditDefaultsOnly, Category = "T4C|Loot")
 	float LootDropChance = 0.65f;
@@ -70,6 +75,7 @@ protected:
 private:
 	int32 NextStartIndex = 0;
 	FTimerHandle AutoSaveTimer;
+	FVector MerchantLocation = FVector::ZeroVector; // usado pelo auto-teste
 
 	// --- Harness de auto-teste (headless), ativado por -T4CAutoTest ---
 	// Escolhe uma classe para cada jogador e usa Q/E periodicamente, permitindo

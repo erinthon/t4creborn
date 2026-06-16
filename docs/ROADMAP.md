@@ -37,7 +37,8 @@ Marcos incrementais. Cada fase entrega algo jogável/verificável.
       dano/cura/regen, equipamento e parry como ASC/AttributeSet/GameplayEffect/GameplayAbility
       (ver `docs/GAS_MIGRATION.md`)
 - [ ] Mais zonas (Raven's Dust), dungeons, mini-bosses
-- [ ] NPCs de treino de perícia, lojas
+- [x] NPCs de treino de perícia, lojas — mercador (vende/compra, moeda ouro) e treinador
+      (gasta pontos de perícia p/ +1 atributo primário) na vila; ouro persiste no save
 - [~] Dedicated server + persistência:
       - **Persistência via serviço HTTP + DB feita** — `Services/persistence_service.py`
         (Python stdlib + SQLite) guarda os personagens; o servidor de jogo fala HTTP via

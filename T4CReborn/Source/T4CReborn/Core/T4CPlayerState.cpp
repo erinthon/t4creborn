@@ -81,6 +81,44 @@ void AT4CPlayerState::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutL
 	DOREPLIFETIME(AT4CPlayerState, UnspentSkillPoints);
 	DOREPLIFETIME(AT4CPlayerState, ChosenClass);
 	DOREPLIFETIME(AT4CPlayerState, bHasChosenClass);
+	DOREPLIFETIME(AT4CPlayerState, Gold);
+}
+
+void AT4CPlayerState::GrantGold(int32 Amount)
+{
+	if (!HasAuthority() || Amount <= 0)
+	{
+		return;
+	}
+	Gold += Amount;
+	OnStatsChanged.Broadcast();
+}
+
+bool AT4CPlayerState::SpendGold(int32 Amount)
+{
+	if (!HasAuthority() || Amount <= 0 || Gold < Amount)
+	{
+		return false;
+	}
+	Gold -= Amount;
+	OnStatsChanged.Broadcast();
+	return true;
+}
+
+bool AT4CPlayerState::TrainPrimaryAttribute()
+{
+	if (!HasAuthority() || !bHasChosenClass || UnspentSkillPoints < TrainCostSkillPoints)
+	{
+		return false;
+	}
+	UnspentSkillPoints -= TrainCostSkillPoints;
+	const ET4CAttribute Attr = T4CClasses::PrimaryAttribute(ChosenClass);
+	PrimaryStats.Add(Attr, 1);
+	PushStatsToASC(/*bRefill=*/false);
+	OnStatsChanged.Broadcast();
+	UE_LOG(LogTemp, Display, TEXT("[T4C] %s treinou (+1 atributo primario, sobram %d pericia)"),
+		*GetPlayerName(), UnspentSkillPoints);
+	return true;
 }
 
 void AT4CPlayerState::ServerSelectClass_Implementation(ET4CClass Class)
@@ -318,6 +356,7 @@ FString AT4CPlayerState::SerializeToJson() const
 	Root->SetNumberField(TEXT("xp"), Experience);
 	Root->SetNumberField(TEXT("unspentStat"), UnspentStatPoints);
 	Root->SetNumberField(TEXT("unspentSkill"), UnspentSkillPoints);
+	Root->SetNumberField(TEXT("gold"), Gold);
 
 	int32 WeaponIdx = -1, ArmorIdx = -1;
 	TArray<TSharedPtr<FJsonValue>> ItemsJson;
@@ -377,6 +416,7 @@ void AT4CPlayerState::ApplyFromJson(const FString& Json)
 	Experience = Root->GetIntegerField(TEXT("xp"));
 	UnspentStatPoints = Root->GetIntegerField(TEXT("unspentStat"));
 	UnspentSkillPoints = Root->GetIntegerField(TEXT("unspentSkill"));
+	Gold = Root->HasField(TEXT("gold")) ? Root->GetIntegerField(TEXT("gold")) : 0;
 
 	TArray<FT4CItem> Items;
 	const TArray<TSharedPtr<FJsonValue>>* ItemsArr;
