@@ -23,6 +23,7 @@ void UT4CAttributeSet::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& Out
 	DOREPLIFETIME_CONDITION_NOTIFY(UT4CAttributeSet, MaxMana, COND_None, REPNOTIFY_Always);
 	DOREPLIFETIME_CONDITION_NOTIFY(UT4CAttributeSet, Armor, COND_None, REPNOTIFY_Always);
 	DOREPLIFETIME_CONDITION_NOTIFY(UT4CAttributeSet, WeaponDamageBonus, COND_None, REPNOTIFY_Always);
+	DOREPLIFETIME_CONDITION_NOTIFY(UT4CAttributeSet, DamageReduction, COND_None, REPNOTIFY_Always);
 }
 
 void UT4CAttributeSet::PreAttributeChange(const FGameplayAttribute& Attribute, float& NewValue)
@@ -44,6 +45,10 @@ void UT4CAttributeSet::PreAttributeChange(const FGameplayAttribute& Attribute, f
 	else if (Attribute == GetManaAttribute())
 	{
 		NewValue = FMath::Clamp(NewValue, 0.f, GetMaxMana());
+	}
+	else if (Attribute == GetDamageReductionAttribute())
+	{
+		NewValue = FMath::Clamp(NewValue, 0.f, 0.95f);
 	}
 }
 

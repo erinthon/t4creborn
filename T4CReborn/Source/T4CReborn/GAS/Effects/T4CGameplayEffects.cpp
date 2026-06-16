@@ -94,12 +94,35 @@ UGE_Parry::UGE_Parry()
 	DurSBC.DataTag = T4CTags::Data_Duration;
 	DurationMagnitude = FGameplayEffectModifierMagnitude(DurSBC);
 
-	// Bônus plano de armadura enquanto ativo (mitigação temporária).
+	// Redução fracionária de dano enquanto ativo (fração vem da habilidade).
+	FSetByCallerFloat ReductionSBC;
+	ReductionSBC.DataTag = T4CTags::Data_Reduction;
+	FGameplayModifierInfo ReductionMod;
+	ReductionMod.Attribute = UT4CAttributeSet::GetDamageReductionAttribute();
+	ReductionMod.ModifierOp = EGameplayModOp::Additive;
+	ReductionMod.ModifierMagnitude = FGameplayEffectModifierMagnitude(ReductionSBC);
+	Modifiers.Add(ReductionMod);
+}
+
+UGE_Equipment::UGE_Equipment()
+{
+	DurationPolicy = EGameplayEffectDurationType::Infinite;
+
+	FSetByCallerFloat ArmorSBC;
+	ArmorSBC.DataTag = T4CTags::Data_ArmorBonus;
 	FGameplayModifierInfo ArmorMod;
 	ArmorMod.Attribute = UT4CAttributeSet::GetArmorAttribute();
 	ArmorMod.ModifierOp = EGameplayModOp::Additive;
-	ArmorMod.ModifierMagnitude = FGameplayEffectModifierMagnitude(FScalableFloat(30.f));
+	ArmorMod.ModifierMagnitude = FGameplayEffectModifierMagnitude(ArmorSBC);
 	Modifiers.Add(ArmorMod);
+
+	FSetByCallerFloat WeaponSBC;
+	WeaponSBC.DataTag = T4CTags::Data_WeaponBonus;
+	FGameplayModifierInfo WeaponMod;
+	WeaponMod.Attribute = UT4CAttributeSet::GetWeaponDamageBonusAttribute();
+	WeaponMod.ModifierOp = EGameplayModOp::Additive;
+	WeaponMod.ModifierMagnitude = FGameplayEffectModifierMagnitude(WeaponSBC);
+	Modifiers.Add(WeaponMod);
 }
 
 UGE_Cooldown::UGE_Cooldown()

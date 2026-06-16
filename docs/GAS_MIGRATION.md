@@ -48,8 +48,18 @@ Tudo em C++ puro (sem Blueprint), mantendo a convenção do projeto.
   HUD de cooldown lê `GetActiveEffectsTimeRemaining` no ASC. Verificado por harness de
   auto-teste (`-T4CAutoTest` no GameMode): Fire Dart/FireStorm disparam com dano correto,
   cooldown bloqueia o 2º press, custo+regen de mana corretos, sem erros.
-- **Estágio 3 — Equipamento & limpeza**: bônus via GEs; Parry fracionário; remove código
-  morto; docs/memória.
+- **Estágio 3 — Equipamento & limpeza** ✅: equipamento via `GE_Equipment` infinito (Armadura
+  e dano de arma por SetByCaller; aplicado/removido pelo `UT4CAbilitySystemComponent::ApplyEquipment`
+  no equip/respawn). Parry agora é **redução fracionária** via o atributo `DamageReduction`
+  (`GE_Parry` SetByCaller Data.Reduction), mitigada em `UExec_Damage` antes da armadura.
+  Removido `SetEquipmentBonuses` (escrita direta de atributo). Verificado por auto-teste
+  (Guerreiro equipa arma+10/armadura+7 → projétil dano 115; Parry alterna 50%↔0%), sem erros.
+
+> **Migração GAS concluída.** Combate, atributos, habilidades, custo/cooldown, regen,
+> equipamento e mitigação rodam inteiramente sobre o GAS. Refinamento futuro (não bloqueante):
+> `NetExecutionPolicy = LocalPredicted` para predição de cliente; conceder a tag `State.Parrying`
+> via `UTargetTagsGameplayEffectComponent` quando algum sistema for consumi-la; mover as tabelas
+> de dados (classes/habilidades/itens/balance) para DataTables.
 
 ## Ferramentas
 

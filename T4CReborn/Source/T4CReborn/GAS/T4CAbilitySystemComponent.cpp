@@ -8,6 +8,7 @@ UT4CAbilitySystemComponent::UT4CAbilitySystemComponent()
 {
 	DerivedAttributesEffect = UGE_DerivedAttributes::StaticClass();
 	RegenEffect = UGE_Regen::StaticClass();
+	EquipmentEffect = UGE_Equipment::StaticClass();
 }
 
 void UT4CAbilitySystemComponent::SetPrimaryStats(const FT4CPrimaryStats& Stats)
@@ -53,14 +54,34 @@ void UT4CAbilitySystemComponent::RefillVitals()
 	SetLooseGameplayTagCount(T4CTags::State_Dead, 0);
 }
 
-void UT4CAbilitySystemComponent::SetEquipmentBonuses(float ArmorValue, float WeaponDamageBonus)
+void UT4CAbilitySystemComponent::ApplyEquipment(float ArmorValue, float WeaponDamageBonus)
 {
 	if (!IsOwnerActorAuthoritative())
 	{
 		return;
 	}
-	SetNumericAttributeBase(UT4CAttributeSet::GetArmorAttribute(), FMath::Max(0.f, ArmorValue));
-	SetNumericAttributeBase(UT4CAttributeSet::GetWeaponDamageBonusAttribute(), FMath::Max(0.f, WeaponDamageBonus));
+
+	// Remove o GE de equipamento anterior antes de reaplicar com os novos bônus.
+	if (EquipmentEffectHandle.IsValid())
+	{
+		RemoveActiveGameplayEffect(EquipmentEffectHandle);
+		EquipmentEffectHandle.Invalidate();
+	}
+
+	if ((ArmorValue <= 0.f && WeaponDamageBonus <= 0.f) || !EquipmentEffect)
+	{
+		return; // nada equipado
+	}
+
+	FGameplayEffectContextHandle Ctx = MakeEffectContext();
+	Ctx.AddSourceObject(this);
+	FGameplayEffectSpecHandle Spec = MakeOutgoingSpec(EquipmentEffect, 1.f, Ctx);
+	if (Spec.IsValid())
+	{
+		Spec.Data->SetSetByCallerMagnitude(T4CTags::Data_ArmorBonus, FMath::Max(0.f, ArmorValue));
+		Spec.Data->SetSetByCallerMagnitude(T4CTags::Data_WeaponBonus, FMath::Max(0.f, WeaponDamageBonus));
+		EquipmentEffectHandle = ApplyGameplayEffectSpecToSelf(*Spec.Data);
+	}
 }
 
 void UT4CAbilitySystemComponent::ApplyEffectToSelf(TSubclassOf<UGameplayEffect> EffectClass)

@@ -49,13 +49,24 @@ public:
 	UGE_Cost();
 };
 
-/** Duração (SetByCaller Data.Duration): concede Armadura temporária (Parry). */
+/** Duração (SetByCaller Data.Duration): redução fracionária de dano (SetByCaller
+ *  Data.Reduction) enquanto ativo (Parry). */
 UCLASS()
 class T4CREBORN_API UGE_Parry : public UGameplayEffect
 {
 	GENERATED_BODY()
 public:
 	UGE_Parry();
+};
+
+/** Infinito: bônus de equipamento — Armadura (SetByCaller Data.ArmorBonus) e dano
+ *  de arma (SetByCaller Data.WeaponBonus). Aplicado/removido pelo inventário. */
+UCLASS()
+class T4CREBORN_API UGE_Equipment : public UGameplayEffect
+{
+	GENERATED_BODY()
+public:
+	UGE_Equipment();
 };
 
 /** Duração (SetByCaller Data.Duration): cooldown puro. A tag de cooldown do slot

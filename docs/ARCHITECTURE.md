@@ -23,8 +23,8 @@ Regra de ouro: **o servidor decide tudo** que afeta gameplay (HP, dano, XP, posi
 ## 2. Ownership de dados (onde cada coisa vive)
 | Dado | Classe UE | Replicação |
 |------|-----------|------------|
-| Atributos persistentes (STR/END/AGI/INT/WIS, nível, XP) | `AT4CPlayerState` | Replicado p/ todos |
-| HP/Mana/estado de combate em tempo real | `UT4CAttributeComponent` (no Character) | Replicado; só servidor escreve |
+| Progressão (nível, XP, pontos não-gastos, classe) + inventário + **ASC/AttributeSet** | `AT4CPlayerState` | Replicado; persiste entre respawns do pawn |
+| Atributos de combate (STR/END/AGI/INT/WIS, HP/Mana, Armadura, etc.) | `UT4CAttributeSet` no ASC (jogador: PlayerState; monstro: pawn) | Replicado; só servidor escreve |
 | Pawn/movimento | `AT4CCharacter` | Movimento replicado nativo |
 | Input/câmera | `AT4CPlayerController` | Local; envia RPCs ao servidor |
 | Regras de partida/spawn | `AT4CGameMode` (**só servidor**) | Não replicado |
@@ -32,12 +32,15 @@ Regra de ouro: **o servidor decide tudo** que afeta gameplay (HP, dano, XP, posi
 
 ---
 
-## 3. Sistema de atributos — duas opções
-**Fase Protótipo (agora): `UT4CAttributeComponent`** — componente replicado simples e legível. Servidor é a única autoridade de escrita; clientes recebem via `OnRep`. Suficiente para STR/END/AGI/INT/WIS + HP/Mana + level-up.
+## 3. Sistema de atributos — GAS (implementado na Fase 4)
+O protótipo começou com um `UT4CAttributeComponent` simples e migrou para o **Gameplay Ability System** na Fase 4 (ver `docs/GAS_MIGRATION.md`). Hoje:
 
-**Fase de escala (futuro): Gameplay Ability System (GAS)** — `UAbilitySystemComponent` + `UAttributeSet` + `GameplayEffect`/`GameplayAbility`. É o padrão da indústria para RPGs com muitas perícias/buffs/cooldowns replicados. Migraremos quando o número de habilidades crescer (as 4 perícias de combate + linhas de magia do GDD mapeiam 1:1 para `GameplayAbility`).
+- **`UT4CAbilitySystemComponent`** — ASC; vive no `AT4CPlayerState` (jogadores, persiste entre respawns) e no pawn `AT4CMonster` (monstros).
+- **`UT4CAttributeSet`** — STR/END/AGI/INT/WIS, HP/MaxHP, Mana/MaxMana, Armadura, bônus de arma, redução de dano e meta-atributos (IncomingDamage/Healing). MaxHP/MaxMana derivam dos primários via MMC.
+- **`GameplayEffect`** (em C++) — dano (com Execution de mitigação), cura, custo de mana, cooldown, regeneração periódica, equipamento e parry. Magnitudes dinâmicas via SetByCaller.
+- **`GameplayAbility`** — perícias/magias Q/E concedidas por classe; custo/cooldown como GEs.
 
-> Decisão: começar simples (componente) reduz risco e tempo no protótipo; GAS entra na Fase 2 quando o custo se paga.
+> Decisão: começar simples (componente) reduziu risco no protótipo; GAS entrou assim que o número de habilidades/itens cresceu, evitando reescrever um volume grande de conteúdo.
 
 ---
 

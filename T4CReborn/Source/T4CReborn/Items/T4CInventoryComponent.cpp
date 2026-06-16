@@ -123,7 +123,7 @@ void UT4CInventoryComponent::RefreshEquipmentBonuses()
 	{
 		if (UT4CAbilitySystemComponent* T4CASC = Cast<UT4CAbilitySystemComponent>(ASC))
 		{
-			T4CASC->SetEquipmentBonuses(GetEquippedArmor(), GetEquippedWeaponDamage());
+			T4CASC->ApplyEquipment(GetEquippedArmor(), GetEquippedWeaponDamage());
 		}
 	}
 }

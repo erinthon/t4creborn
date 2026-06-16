@@ -28,8 +28,9 @@ public:
 	/** Servidor: enche HP/Mana ao máximo e limpa o estado de morte. */
 	void RefillVitals();
 
-	/** Servidor: define os bônus de equipamento (Armadura/Dano de arma base). */
-	void SetEquipmentBonuses(float ArmorValue, float WeaponDamageBonus);
+	/** Servidor: (re)aplica o GE de equipamento com os bônus atuais (remove o
+	 *  anterior). Substitui escrita direta de atributo. */
+	void ApplyEquipment(float ArmorValue, float WeaponDamageBonus);
 
 protected:
 	UPROPERTY(EditDefaultsOnly, Category = "T4C|GAS")
@@ -38,8 +39,12 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = "T4C|GAS")
 	TSubclassOf<UGameplayEffect> RegenEffect;
 
+	UPROPERTY(EditDefaultsOnly, Category = "T4C|GAS")
+	TSubclassOf<UGameplayEffect> EquipmentEffect;
+
 private:
 	void ApplyEffectToSelf(TSubclassOf<UGameplayEffect> EffectClass);
 
 	bool bStartupEffectsApplied = false;
+	FActiveGameplayEffectHandle EquipmentEffectHandle;
 };

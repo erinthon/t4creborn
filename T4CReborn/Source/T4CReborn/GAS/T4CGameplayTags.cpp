@@ -12,6 +12,9 @@ namespace T4CTags
 	UE_DEFINE_GAMEPLAY_TAG(Data_Healing, "Data.Healing");
 	UE_DEFINE_GAMEPLAY_TAG(Data_ManaCost, "Data.ManaCost");
 	UE_DEFINE_GAMEPLAY_TAG(Data_Duration, "Data.Duration");
+	UE_DEFINE_GAMEPLAY_TAG(Data_Reduction, "Data.Reduction");
+	UE_DEFINE_GAMEPLAY_TAG(Data_ArmorBonus, "Data.ArmorBonus");
+	UE_DEFINE_GAMEPLAY_TAG(Data_WeaponBonus, "Data.WeaponBonus");
 
 	UE_DEFINE_GAMEPLAY_TAG(Ability_Type_Projectile, "Ability.Type.Projectile");
 	UE_DEFINE_GAMEPLAY_TAG(Ability_Type_Heal, "Ability.Type.Heal");

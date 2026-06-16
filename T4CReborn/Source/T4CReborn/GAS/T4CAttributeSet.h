@@ -82,6 +82,11 @@ public:
 	FGameplayAttributeData WeaponDamageBonus;
 	ATTRIBUTE_ACCESSORS(UT4CAttributeSet, WeaponDamageBonus)
 
+	/** Redução fracionária de dano recebido (0..1), concedida pelo Parry. */
+	UPROPERTY(BlueprintReadOnly, ReplicatedUsing = OnRep_DamageReduction, Category = "T4C|Combat")
+	FGameplayAttributeData DamageReduction;
+	ATTRIBUTE_ACCESSORS(UT4CAttributeSet, DamageReduction)
+
 	// --- Meta-atributos (transientes, não replicados) ---
 	UPROPERTY(BlueprintReadOnly, Category = "T4C|Meta")
 	FGameplayAttributeData IncomingDamage;
@@ -108,6 +113,7 @@ protected:
 	UFUNCTION() void OnRep_MaxMana(const FGameplayAttributeData& Old) { GAMEPLAYATTRIBUTE_REPNOTIFY(UT4CAttributeSet, MaxMana, Old); }
 	UFUNCTION() void OnRep_Armor(const FGameplayAttributeData& Old) { GAMEPLAYATTRIBUTE_REPNOTIFY(UT4CAttributeSet, Armor, Old); }
 	UFUNCTION() void OnRep_WeaponDamageBonus(const FGameplayAttributeData& Old) { GAMEPLAYATTRIBUTE_REPNOTIFY(UT4CAttributeSet, WeaponDamageBonus, Old); }
+	UFUNCTION() void OnRep_DamageReduction(const FGameplayAttributeData& Old) { GAMEPLAYATTRIBUTE_REPNOTIFY(UT4CAttributeSet, DamageReduction, Old); }
 
 private:
 	/** Mantém o valor atual proporcional quando o máximo muda (ex.: level-up). */
