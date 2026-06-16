@@ -9,6 +9,7 @@
 
 class USpringArmComponent;
 class UCameraComponent;
+class UStaticMeshComponent;
 class UT4CAttributeSet;
 class UAnimSequenceBase;
 
@@ -49,6 +50,10 @@ protected:
 
 	// O corpo visível é a malha esqueletal herdada de ACharacter (GetMesh()):
 	// Manny (SKM_Manny_Simple) + AnimBlueprint ABP_Unarmed, montados no construtor.
+
+	/** Arma na mão direita (placeholder de primitiva; trocar por malha real depois). */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Combat")
+	TObjectPtr<UStaticMeshComponent> WeaponMesh;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Camera")
 	TObjectPtr<USpringArmComponent> CameraBoom;

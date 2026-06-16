@@ -12,6 +12,7 @@
 #include "Engine/SkeletalMesh.h"
 #include "Animation/AnimInstance.h"
 #include "Animation/AnimSequence.h"
+#include "Core/T4CVisuals.h"
 #include "Items/T4CInventoryComponent.h"
 #include "Items/T4CLootPickup.h"
 #include "Items/T4CItemData.h"
@@ -59,6 +60,19 @@ AT4CCharacter::AT4CCharacter()
 	if (Atk1.Succeeded()) AttackAnims.Add(Atk1.Object);
 	if (Atk2.Succeeded()) AttackAnims.Add(Atk2.Object);
 
+	// Arma placeholder: lâmina de primitiva presa ao osso hand_r (trocar por malha real depois).
+	WeaponMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("WeaponMesh"));
+	WeaponMesh->SetupAttachment(GetMesh(), TEXT("hand_r"));
+	WeaponMesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	static ConstructorHelpers::FObjectFinder<UStaticMesh> BladeMesh(TEXT("/Engine/BasicShapes/Cube.Cube"));
+	if (BladeMesh.Succeeded())
+	{
+		WeaponMesh->SetStaticMesh(BladeMesh.Object);
+		// Lâmina comprida ao longo do X local da mão; transform inicial (ajustar visualmente).
+		WeaponMesh->SetRelativeScale3D(FVector(0.9f, 0.05f, 0.05f));
+		WeaponMesh->SetRelativeLocationAndRotation(FVector(38.f, 0.f, 0.f), FRotator(0.f, 0.f, 0.f));
+	}
+
 	CameraBoom = CreateDefaultSubobject<USpringArmComponent>(TEXT("CameraBoom"));
 	CameraBoom->SetupAttachment(RootComponent);
 	CameraBoom->TargetArmLength = 500.f;
@@ -76,6 +90,9 @@ AT4CCharacter::AT4CCharacter()
 void AT4CCharacter::BeginPlay()
 {
 	Super::BeginPlay();
+
+	// Cor de aço na lâmina placeholder.
+	T4CVisuals::ApplyBodyColor(WeaponMesh, this, FLinearColor(0.7f, 0.72f, 0.8f));
 }
 
 UAbilitySystemComponent* AT4CCharacter::GetAbilitySystemComponent() const
