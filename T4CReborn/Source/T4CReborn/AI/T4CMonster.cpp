@@ -83,6 +83,12 @@ void AT4CMonster::BeginPlay()
 
 	SpawnLocation = GetActorLocation();
 	InitAbilitySystem();
+
+	// Cor do corpo: vermelho (inimigo), contrastando com o azul dos jogadores.
+	if (BodyMesh)
+	{
+		BodyMesh->SetVectorParameterValueOnMaterials(TEXT("Color"), FVector(0.9f, 0.15f, 0.1f));
+	}
 }
 
 void AT4CMonster::PossessedBy(AController* NewController)

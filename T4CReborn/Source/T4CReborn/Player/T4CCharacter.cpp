@@ -59,6 +59,12 @@ AT4CCharacter::AT4CCharacter()
 void AT4CCharacter::BeginPlay()
 {
 	Super::BeginPlay();
+
+	// Cor do corpo: azul-aço (distingue jogadores dos monstros vermelhos).
+	if (BodyMesh)
+	{
+		BodyMesh->SetVectorParameterValueOnMaterials(TEXT("Color"), FVector(0.2f, 0.45f, 0.95f));
+	}
 }
 
 UAbilitySystemComponent* AT4CCharacter::GetAbilitySystemComponent() const

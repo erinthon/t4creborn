@@ -73,6 +73,13 @@ void AT4CHUD::DrawHUD()
 	const FLinearColor Gold(1.f, 0.85f, 0.2f, 1.f);
 	const FLinearColor Dim(0.75f, 0.75f, 0.8f, 1.f);
 
+	// --- Aguardando o load de persistência (evita o menu de classe 'piscar') ---
+	if (!PS->IsLoadResolved())
+	{
+		DrawText(TEXT("Carregando personagem..."), Gold, W * 0.5f - 130.f, H * 0.45f, nullptr, 1.4f);
+		return;
+	}
+
 	// --- Menu de seleção de classe (antes de escolher) ---
 	if (!PS->HasChosenClass())
 	{

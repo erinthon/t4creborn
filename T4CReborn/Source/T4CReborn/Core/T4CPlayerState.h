@@ -104,6 +104,10 @@ public:
 	UFUNCTION(BlueprintPure, Category = "T4C|Progression")
 	bool HasChosenClass() const { return bHasChosenClass; }
 
+	/** False até o load de persistência resolver (evita 'flash' do menu de classe). */
+	UFUNCTION(BlueprintPure, Category = "T4C|Progression")
+	bool IsLoadResolved() const { return bLoadResolved; }
+
 	UFUNCTION(BlueprintPure, Category = "T4C|Progression")
 	ET4CClass GetChosenClass() const { return ChosenClass; }
 
@@ -152,6 +156,10 @@ protected:
 
 	UPROPERTY(ReplicatedUsing = OnRep_Progression, VisibleAnywhere, Category = "T4C|Economy")
 	int32 Gold = 0;
+
+	/** Replicado: o load de persistência (assíncrono) já resolveu? */
+	UPROPERTY(ReplicatedUsing = OnRep_Progression, VisibleAnywhere, Category = "T4C|Progression")
+	bool bLoadResolved = false;
 
 	UFUNCTION()
 	void OnRep_Progression();
