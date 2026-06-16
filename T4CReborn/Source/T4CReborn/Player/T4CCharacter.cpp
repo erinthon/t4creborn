@@ -6,9 +6,11 @@
 #include "GAS/T4CGameplayTags.h"
 #include "GAS/T4CAbilityInputID.h"
 #include "GAS/Effects/T4CGameplayEffects.h"
-#include "Core/T4CVisuals.h"
 #include "AbilitySystemComponent.h"
 #include "AbilitySystemBlueprintLibrary.h"
+#include "Components/SkeletalMeshComponent.h"
+#include "Engine/SkeletalMesh.h"
+#include "Animation/AnimInstance.h"
 #include "Items/T4CInventoryComponent.h"
 #include "Items/T4CLootPickup.h"
 #include "Items/T4CItemData.h"
@@ -32,17 +34,20 @@ AT4CCharacter::AT4CCharacter()
 	GetCharacterMovement()->bOrientRotationToMovement = true;
 	GetCharacterMovement()->RotationRate = FRotator(0.f, 540.f, 0.f);
 
-	// Corpo visível: cilindro padrão do engine (sempre disponível, sem conteúdo de projeto).
-	BodyMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("BodyMesh"));
-	BodyMesh->SetupAttachment(RootComponent);
-	BodyMesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-	static ConstructorHelpers::FObjectFinder<UStaticMesh> CylinderMesh(
-		TEXT("/Engine/BasicShapes/Cylinder.Cylinder"));
-	if (CylinderMesh.Succeeded())
+	// Corpo visível: malha esqueletal do Manny (herdada de ACharacter via GetMesh()),
+	// com o AnimBlueprint de locomoção. Posicionada na base da cápsula, virada p/ +X.
+	GetMesh()->SetRelativeLocationAndRotation(FVector(0.f, 0.f, -89.f), FRotator(0.f, -90.f, 0.f));
+	static ConstructorHelpers::FObjectFinder<USkeletalMesh> MannyMesh(
+		TEXT("/Game/Characters/Mannequins/Meshes/SKM_Manny_Simple.SKM_Manny_Simple"));
+	if (MannyMesh.Succeeded())
 	{
-		BodyMesh->SetStaticMesh(CylinderMesh.Object);
-		// Cilindro do engine tem 100uu de altura; a cápsula tem ~176uu (half height 88).
-		BodyMesh->SetRelativeScale3D(FVector(0.68f, 0.68f, 1.76f));
+		GetMesh()->SetSkeletalMesh(MannyMesh.Object);
+	}
+	static ConstructorHelpers::FClassFinder<UAnimInstance> AnimBP(
+		TEXT("/Game/Characters/Mannequins/Anims/Unarmed/ABP_Unarmed"));
+	if (AnimBP.Succeeded())
+	{
+		GetMesh()->SetAnimInstanceClass(AnimBP.Class);
 	}
 
 	CameraBoom = CreateDefaultSubobject<USpringArmComponent>(TEXT("CameraBoom"));
@@ -62,9 +67,6 @@ AT4CCharacter::AT4CCharacter()
 void AT4CCharacter::BeginPlay()
 {
 	Super::BeginPlay();
-
-	// Cor do corpo: azul-aço (distingue jogadores dos monstros vermelhos).
-	T4CVisuals::ApplyBodyColor(BodyMesh, this, FLinearColor(0.2f, 0.45f, 0.95f));
 }
 
 UAbilitySystemComponent* AT4CCharacter::GetAbilitySystemComponent() const

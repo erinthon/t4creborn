@@ -9,7 +9,6 @@
 
 class USpringArmComponent;
 class UCameraComponent;
-class UStaticMeshComponent;
 class UT4CAttributeSet;
 
 /**
@@ -47,8 +46,8 @@ protected:
 	/** Servidor e cliente: liga o ASC do PlayerState a este avatar. */
 	void InitAbilitySystem();
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "T4C")
-	TObjectPtr<UStaticMeshComponent> BodyMesh;
+	// O corpo visível é a malha esqueletal herdada de ACharacter (GetMesh()):
+	// Manny (SKM_Manny_Simple) + AnimBlueprint ABP_Unarmed, montados no construtor.
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Camera")
 	TObjectPtr<USpringArmComponent> CameraBoom;
