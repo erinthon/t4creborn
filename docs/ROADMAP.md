@@ -33,7 +33,9 @@ Marcos incrementais. Cada fase entrega algo jogável/verificável.
 - [x] **Critério:** criar um Guerreiro ou Mago e jogar a fatia vertical de Arakas com outro jogador
 
 ## Fase 4 — Escala
-- [ ] Migrar para Gameplay Ability System (GAS)
+- [x] Migrar para Gameplay Ability System (GAS) — atributos, habilidades, custo/cooldown,
+      dano/cura/regen, equipamento e parry como ASC/AttributeSet/GameplayEffect/GameplayAbility
+      (ver `docs/GAS_MIGRATION.md`)
 - [ ] Mais zonas (Raven's Dust), dungeons, mini-bosses
 - [ ] NPCs de treino de perícia, lojas
 - [ ] Dedicated server + persistência (DB)

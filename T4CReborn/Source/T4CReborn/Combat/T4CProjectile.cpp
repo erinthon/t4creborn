@@ -1,6 +1,9 @@
 #include "Combat/T4CProjectile.h"
-#include "Attributes/T4CAttributeComponent.h"
 #include "Player/T4CCharacter.h"
+#include "GAS/Effects/T4CGameplayEffects.h"
+#include "GAS/T4CGameplayTags.h"
+#include "AbilitySystemComponent.h"
+#include "AbilitySystemBlueprintLibrary.h"
 #include "Components/SphereComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Components/PointLightComponent.h"
@@ -94,9 +97,20 @@ void AT4CProjectile::OnHit(UPrimitiveComponent* HitComp, AActor* OtherActor,
 
 	if (HasAuthority() && OtherActor && OtherActor != GetInstigator() && !bIsPlayer)
 	{
-		if (UT4CAttributeComponent* Attr = OtherActor->FindComponentByClass<UT4CAttributeComponent>())
+		UAbilitySystemComponent* TargetASC = UAbilitySystemBlueprintLibrary::GetAbilitySystemComponent(OtherActor);
+		UAbilitySystemComponent* Src = SourceASC.Get();
+		if (TargetASC && Src)
 		{
-			Attr->ApplyDamage(Damage, GetInstigator());
+			// GE de dano: instigador = quem disparou (para atribuir XP na morte);
+			// a armadura do alvo é mitigada dentro de UExec_Damage.
+			FGameplayEffectContextHandle Ctx = Src->MakeEffectContext();
+			Ctx.AddInstigator(GetInstigator(), this);
+			FGameplayEffectSpecHandle Spec = Src->MakeOutgoingSpec(UGE_Damage::StaticClass(), 1.f, Ctx);
+			if (Spec.IsValid())
+			{
+				Spec.Data->SetSetByCallerMagnitude(T4CTags::Data_Damage, Damage);
+				Src->ApplyGameplayEffectSpecToTarget(*Spec.Data, TargetASC);
+			}
 		}
 	}
 

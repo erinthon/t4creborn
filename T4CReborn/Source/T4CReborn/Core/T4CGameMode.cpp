@@ -6,6 +6,13 @@
 #include "AI/T4CMonster.h"
 #include "Items/T4CLootPickup.h"
 #include "Items/T4CItemData.h"
+#include "GAS/T4CAttributeSet.h"
+#include "GAS/T4CAbilityInputID.h"
+#include "GAS/T4CGameplayTags.h"
+#include "Attributes/T4CClassData.h"
+#include "Items/T4CInventoryComponent.h"
+#include "Items/T4CItemData.h"
+#include "AbilitySystemComponent.h"
 #include "UI/T4CHUD.h"
 #include "TimerManager.h"
 #include "GameFramework/PlayerStart.h"
@@ -39,6 +46,64 @@ void AT4CGameMode::BeginPlay()
 	for (const FVector& Point : MonsterSpawnPoints)
 	{
 		SpawnMonster(Point);
+	}
+
+	bAutoTest = FParse::Param(FCommandLine::Get(), TEXT("T4CAutoTest"));
+	if (bAutoTest)
+	{
+		UE_LOG(LogTemp, Display, TEXT("[T4C][AutoTest] ativado"));
+		GetWorldTimerManager().SetTimer(AutoTestTimer, this, &AT4CGameMode::RunAutoTest, 2.0f, true, 3.0f);
+	}
+}
+
+void AT4CGameMode::RunAutoTest()
+{
+	++AutoTestTick;
+	for (FConstPlayerControllerIterator It = GetWorld()->GetPlayerControllerIterator(); It; ++It)
+	{
+		APlayerController* PC = It->Get();
+		AT4CPlayerState* PS = PC ? PC->GetPlayerState<AT4CPlayerState>() : nullptr;
+		if (!PS)
+		{
+			continue;
+		}
+
+		// 1) Garante a classe Guerreiro (Q=Powerful Blow projétil, E=Parry).
+		if (!PS->HasChosenClass())
+		{
+			PS->ServerSelectClass(ET4CClass::Warrior);
+			UE_LOG(LogTemp, Display, TEXT("[T4C][AutoTest] %s -> classe Guerreiro"), *PS->GetPlayerName());
+			continue;
+		}
+
+		// 2) Uma vez: dá uma arma e uma armadura para exercitar o GE de equipamento.
+		if (UT4CInventoryComponent* Inv = PS->GetInventory())
+		{
+			if (Inv->GetItems().Num() == 0)
+			{
+				for (const FT4CItem& Item : T4CItems::DropTable())
+				{
+					if (Item.Type == ET4CItemType::Weapon && Item.WeaponDamage >= 10.f) { Inv->AddItem(Item); break; }
+				}
+				for (const FT4CItem& Item : T4CItems::DropTable())
+				{
+					if (Item.Type == ET4CItemType::Armor && Item.Armor >= 7.f) { Inv->AddItem(Item); break; }
+				}
+			}
+		}
+
+		// 3) Usa Q (2x: a 2ª cai no cooldown) e E (Parry) via o caminho do input.
+		UAbilitySystemComponent* ASC = PS->GetAbilitySystemComponent();
+		const UT4CAttributeSet* Set = ASC ? ASC->GetSet<UT4CAttributeSet>() : nullptr;
+		if (ASC && Set)
+		{
+			ASC->AbilityLocalInputPressed(static_cast<int32>(ET4CAbilityInputID::AbilityQ));
+			ASC->AbilityLocalInputPressed(static_cast<int32>(ET4CAbilityInputID::AbilityQ));
+			ASC->AbilityLocalInputPressed(static_cast<int32>(ET4CAbilityInputID::AbilityE));
+			UE_LOG(LogTemp, Display, TEXT("[T4C][AutoTest] %s | Arma+%.0f Armadura+%.0f Reducao%.0f%% (HP %.0f/%.0f)"),
+				*PS->GetPlayerName(), Set->GetWeaponDamageBonus(), Set->GetArmor(),
+				Set->GetDamageReduction() * 100.f, Set->GetHealth(), Set->GetMaxHealth());
+		}
 	}
 }
 

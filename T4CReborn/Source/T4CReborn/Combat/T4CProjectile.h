@@ -8,6 +8,7 @@ class USphereComponent;
 class UStaticMeshComponent;
 class UProjectileMovementComponent;
 class UPointLightComponent;
+class UAbilitySystemComponent;
 
 /**
  * Projétil de ataque: voa em linha reta a partir do jogador e, ao acertar
@@ -26,6 +27,9 @@ public:
 
 	/** Servidor: define o dano antes do disparo. */
 	void SetDamage(float InDamage) { Damage = InDamage; }
+
+	/** Servidor: define o ASC de origem (do atacante) para aplicar o GE de dano. */
+	void SetSource(UAbilitySystemComponent* InSourceASC) { SourceASC = InSourceASC; }
 
 	/** Servidor: define cor/tamanho (chamar antes de FinishSpawning). */
 	void SetVisual(FLinearColor InColor, float InScale) { ProjColor = InColor; ProjScale = InScale; }
@@ -59,4 +63,7 @@ protected:
 
 	UPROPERTY(Replicated)
 	float ProjScale = 0.45f;
+
+	/** ASC de origem (atacante). Weak: o pawn pode morrer antes do impacto. */
+	TWeakObjectPtr<UAbilitySystemComponent> SourceASC;
 };

@@ -19,7 +19,12 @@ public class T4CReborn : ModuleRules
 			"InputCore",
 			"NetCore",
 			"UMG",
-			"AIModule"
+			"AIModule",
+			// Gameplay Ability System (Fase 4): ASC, AttributeSet, GameplayEffects,
+			// GameplayAbilities, GameplayTags e GameplayTasks.
+			"GameplayAbilities",
+			"GameplayTags",
+			"GameplayTasks"
 		});
 
 		PrivateDependencyModuleNames.AddRange(new string[]

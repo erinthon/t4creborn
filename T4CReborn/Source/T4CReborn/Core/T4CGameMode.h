@@ -59,4 +59,12 @@ protected:
 
 private:
 	int32 NextStartIndex = 0;
+
+	// --- Harness de auto-teste (headless), ativado por -T4CAutoTest ---
+	// Escolhe uma classe para cada jogador e usa Q/E periodicamente, permitindo
+	// verificar o pipeline de habilidades sem input manual.
+	void RunAutoTest();
+	bool bAutoTest = false;
+	int32 AutoTestTick = 0;
+	FTimerHandle AutoTestTimer;
 };

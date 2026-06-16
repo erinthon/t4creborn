@@ -1,9 +1,14 @@
 #include "AI/T4CMonster.h"
 #include "AI/T4CMonsterAIController.h"
-#include "Attributes/T4CAttributeComponent.h"
 #include "Player/T4CCharacter.h"
 #include "Core/T4CPlayerState.h"
 #include "Core/T4CGameMode.h"
+#include "GAS/T4CAbilitySystemComponent.h"
+#include "GAS/T4CAttributeSet.h"
+#include "GAS/T4CGameplayTags.h"
+#include "GAS/Effects/T4CGameplayEffects.h"
+#include "AbilitySystemComponent.h"
+#include "AbilitySystemBlueprintLibrary.h"
 #include "Components/StaticMeshComponent.h"
 #include "Components/CapsuleComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
@@ -38,10 +43,38 @@ AT4CMonster::AT4CMonster()
 		BodyMesh->SetRelativeLocation(FVector(0.f, 0.f, -10.f));
 	}
 
-	AttributeComponent = CreateDefaultSubobject<UT4CAttributeComponent>(TEXT("AttributeComponent"));
+	// ASC próprio (monstros não têm PlayerState). Replicação mínima: os outros
+	// clientes só precisam dos vitais para as barras de vida do HUD.
+	AbilitySystem = CreateDefaultSubobject<UT4CAbilitySystemComponent>(TEXT("AbilitySystem"));
+	AbilitySystem->SetIsReplicated(true);
+	AbilitySystem->SetReplicationMode(EGameplayEffectReplicationMode::Minimal);
+
+	AttributeSet = CreateDefaultSubobject<UT4CAttributeSet>(TEXT("AttributeSet"));
 
 	AIControllerClass = AT4CMonsterAIController::StaticClass();
 	AutoPossessAI = EAutoPossessAI::PlacedInWorldOrSpawned;
+}
+
+UAbilitySystemComponent* AT4CMonster::GetAbilitySystemComponent() const
+{
+	return AbilitySystem;
+}
+
+bool AT4CMonster::IsAlive() const
+{
+	return AttributeSet && AttributeSet->IsAlive();
+}
+
+void AT4CMonster::InitAbilitySystem()
+{
+	if (!HasAuthority() || !AbilitySystem)
+	{
+		return;
+	}
+	AbilitySystem->InitAbilityActorInfo(this, this);
+	AbilitySystem->SetPrimaryStats(Stats);
+	AbilitySystem->ApplyStartupEffects(); // derivados + regen (uma vez)
+	AbilitySystem->RefillVitals();
 }
 
 void AT4CMonster::BeginPlay()
@@ -49,30 +82,18 @@ void AT4CMonster::BeginPlay()
 	Super::BeginPlay();
 
 	SpawnLocation = GetActorLocation();
-
-	if (AttributeComponent)
-	{
-		AttributeComponent->OnDeath.AddDynamic(this, &AT4CMonster::HandleDeath);
-		if (HasAuthority())
-		{
-			AttributeComponent->RecalculateDerivedStats(Stats, /*bRefill=*/true);
-		}
-	}
+	InitAbilitySystem();
 }
 
 void AT4CMonster::PossessedBy(AController* NewController)
 {
 	Super::PossessedBy(NewController);
-
-	if (HasAuthority() && AttributeComponent)
-	{
-		AttributeComponent->RecalculateDerivedStats(Stats, /*bRefill=*/true);
-	}
+	InitAbilitySystem();
 }
 
 void AT4CMonster::TryMeleeAttack()
 {
-	if (!HasAuthority() || !AttributeComponent || !AttributeComponent->IsAlive())
+	if (!HasAuthority() || !IsAlive() || !AbilitySystem)
 	{
 		return;
 	}
@@ -93,15 +114,23 @@ void AT4CMonster::TryMeleeAttack()
 	Params.AddIgnoredActor(this);
 	GetWorld()->SweepMultiByChannel(Hits, Start, End, FQuat::Identity, ECC_Pawn, Sphere, Params);
 
-	const float Damage = BaseDamage * (1.f + Stats.Strength * AttributeComponent->Balance.DamagePerStrength);
+	const FT4CBalanceConstants Balance;
+	const float Damage = BaseDamage * (1.f + Stats.Strength * Balance.DamagePerStrength);
 
 	for (const FHitResult& Hit : Hits)
 	{
 		if (AT4CCharacter* Target = Cast<AT4CCharacter>(Hit.GetActor()))
 		{
-			if (UT4CAttributeComponent* TargetAttr = Target->GetAttributeComponent())
+			if (UAbilitySystemComponent* TargetASC = UAbilitySystemBlueprintLibrary::GetAbilitySystemComponent(Target))
 			{
-				TargetAttr->ApplyDamage(Damage, this);
+				FGameplayEffectContextHandle Ctx = AbilitySystem->MakeEffectContext();
+				Ctx.AddInstigator(this, this);
+				FGameplayEffectSpecHandle Spec = AbilitySystem->MakeOutgoingSpec(UGE_Damage::StaticClass(), 1.f, Ctx);
+				if (Spec.IsValid())
+				{
+					Spec.Data->SetSetByCallerMagnitude(T4CTags::Data_Damage, Damage);
+					AbilitySystem->ApplyGameplayEffectSpecToTarget(*Spec.Data, TargetASC);
+				}
 				break;
 			}
 		}

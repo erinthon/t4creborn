@@ -1,7 +1,7 @@
 #include "UI/T4CHUD.h"
 #include "Player/T4CCharacter.h"
 #include "Core/T4CPlayerState.h"
-#include "Attributes/T4CAttributeComponent.h"
+#include "GAS/T4CAttributeSet.h"
 #include "AI/T4CMonster.h"
 #include "Attributes/T4CClassData.h"
 #include "Items/T4CInventoryComponent.h"
@@ -24,7 +24,7 @@ void AT4CHUD::DrawHUD()
 	{
 		return;
 	}
-	UT4CAttributeComponent* Attr = Char->GetAttributeComponent();
+	UT4CAttributeSet* Attr = Char->GetAttributeSet();
 	AT4CPlayerState* PS = PlayerOwner->GetPlayerState<AT4CPlayerState>();
 	if (!Attr)
 	{
@@ -175,7 +175,7 @@ void AT4CHUD::DrawHUD()
 	for (TActorIterator<AT4CMonster> It(GetWorld()); It; ++It)
 	{
 		AT4CMonster* Monster = *It;
-		UT4CAttributeComponent* MAttr = Monster ? Monster->GetAttributeComponent() : nullptr;
+		UT4CAttributeSet* MAttr = Monster ? Monster->GetAttributeSet() : nullptr;
 		if (!MAttr || !MAttr->IsAlive())
 		{
 			continue;

@@ -1,8 +1,11 @@
 #include "Player/T4CCharacter.h"
-#include "Attributes/T4CAttributeComponent.h"
 #include "Attributes/T4CAbilityData.h"
 #include "Combat/T4CProjectile.h"
 #include "Core/T4CPlayerState.h"
+#include "GAS/T4CAttributeSet.h"
+#include "GAS/T4CGameplayTags.h"
+#include "GAS/T4CAbilityInputID.h"
+#include "AbilitySystemComponent.h"
 #include "Items/T4CInventoryComponent.h"
 #include "Items/T4CLootPickup.h"
 #include "EngineUtils.h"
@@ -47,18 +50,51 @@ AT4CCharacter::AT4CCharacter()
 	FollowCamera->SetupAttachment(CameraBoom, USpringArmComponent::SocketName);
 	FollowCamera->bUsePawnControlRotation = false;
 
-	AttributeComponent = CreateDefaultSubobject<UT4CAttributeComponent>(TEXT("AttributeComponent"));
-
+	// O ASC vive no PlayerState; o Character é apenas o avatar.
 	ProjectileClass = AT4CProjectile::StaticClass();
 }
 
 void AT4CCharacter::BeginPlay()
 {
 	Super::BeginPlay();
+}
 
-	if (AttributeComponent)
+UAbilitySystemComponent* AT4CCharacter::GetAbilitySystemComponent() const
+{
+	if (const AT4CPlayerState* PS = GetPlayerState<AT4CPlayerState>())
 	{
-		AttributeComponent->OnDeath.AddDynamic(this, &AT4CCharacter::HandleDeath);
+		return PS->GetAbilitySystemComponent();
+	}
+	return nullptr;
+}
+
+UT4CAttributeSet* AT4CCharacter::GetAttributeSet() const
+{
+	if (const AT4CPlayerState* PS = GetPlayerState<AT4CPlayerState>())
+	{
+		return PS->GetAttributeSet();
+	}
+	return nullptr;
+}
+
+bool AT4CCharacter::IsAlive() const
+{
+	const UT4CAttributeSet* Set = GetAttributeSet();
+	return Set && Set->IsAlive();
+}
+
+void AT4CCharacter::InitAbilitySystem()
+{
+	AT4CPlayerState* PS = GetPlayerState<AT4CPlayerState>();
+	if (!PS)
+	{
+		return;
+	}
+	// Liga o ASC do PlayerState (owner) a este pawn (avatar). Roda no servidor e
+	// no cliente — footgun clássico do GAS resolvido aqui.
+	if (UAbilitySystemComponent* ASC = PS->GetAbilitySystemComponent())
+	{
+		ASC->InitAbilityActorInfo(PS, this);
 	}
 }
 
@@ -66,23 +102,24 @@ void AT4CCharacter::PossessedBy(AController* NewController)
 {
 	Super::PossessedBy(NewController);
 
-	// Servidor: inicializa HP/Mana a partir dos atributos do PlayerState.
+	// Servidor: liga o ASC e inicializa os atributos (base + GEs + refill).
 	if (HasAuthority())
 	{
+		InitAbilitySystem();
 		if (AT4CPlayerState* PS = GetPlayerState<AT4CPlayerState>())
 		{
-			if (AttributeComponent)
-			{
-				AttributeComponent->RecalculateDerivedStats(PS->GetPrimaryStats(), /*bRefill=*/true);
-			}
-			// Reaplica bônus do equipamento ao novo pawn (inventário persiste no PlayerState).
-			if (UT4CInventoryComponent* Inv = PS->GetInventory())
-			{
-				Inv->RefreshEquipmentBonuses();
-			}
+			PS->InitializeAttributes();
 		}
 		UE_LOG(LogTemp, Display, TEXT("[T4C] %s nasceu em %s"), *GetName(), *GetActorLocation().ToString());
 	}
+}
+
+void AT4CCharacter::OnRep_PlayerState()
+{
+	Super::OnRep_PlayerState();
+
+	// Cliente: o PlayerState (e seu ASC) acabou de chegar; liga o avatar.
+	InitAbilitySystem();
 }
 
 void AT4CCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
@@ -110,9 +147,9 @@ void AT4CCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCompon
 	PlayerInputComponent->BindAction(TEXT("Slot7"), IE_Pressed, this, &AT4CCharacter::SelectClass6);
 	PlayerInputComponent->BindAction(TEXT("Slot8"), IE_Pressed, this, &AT4CCharacter::SelectClass7);
 
-	// Habilidades de classe: Q (slot 0) e E (slot 1).
-	PlayerInputComponent->BindAction(TEXT("Ability1"), IE_Pressed, this, &AT4CCharacter::UseAbility0);
-	PlayerInputComponent->BindAction(TEXT("Ability2"), IE_Pressed, this, &AT4CCharacter::UseAbility1);
+	// Habilidades de classe: Q (slot 0) e E (slot 1). Ativam pelo InputID no ASC.
+	PlayerInputComponent->BindAction(TEXT("Ability1"), IE_Pressed, this, &AT4CCharacter::OnAbilityQPressed);
+	PlayerInputComponent->BindAction(TEXT("Ability2"), IE_Pressed, this, &AT4CCharacter::OnAbilityEPressed);
 
 	// Recomeçar / trocar de classe (tecla R).
 	PlayerInputComponent->BindAction(TEXT("ResetClass"), IE_Pressed, this, &AT4CCharacter::ResetClass);
@@ -263,77 +300,25 @@ void AT4CCharacter::SpawnAttackProjectile(float Damage, FLinearColor Color, floa
 		ESpawnActorCollisionHandlingMethod::AlwaysSpawn))
 	{
 		Projectile->SetDamage(Damage);
+		Projectile->SetSource(GetAbilitySystemComponent());
 		Projectile->SetVisual(Color, Scale);
 		Projectile->FinishSpawning(SpawnTM);
 	}
 }
 
-void AT4CCharacter::UseAbility(int32 Slot)
+void AT4CCharacter::OnAbilityQPressed()
 {
-	// Predição local de cooldown SÓ no cliente remoto. No host (autoridade) o
-	// servidor cuida — predizer aqui faria o próprio check do servidor bloquear.
-	if (!HasAuthority() && Slot >= 0 && Slot <= 1 && GetWorld())
+	if (UAbilitySystemComponent* ASC = GetAbilitySystemComponent())
 	{
-		LastAbilityTime[Slot] = GetWorld()->GetTimeSeconds();
+		ASC->AbilityLocalInputPressed(static_cast<int32>(ET4CAbilityInputID::AbilityQ));
 	}
-	ServerUseAbility(Slot);
 }
 
-void AT4CCharacter::ServerUseAbility_Implementation(int32 Slot)
+void AT4CCharacter::OnAbilityEPressed()
 {
-	if (Slot < 0 || Slot > 1 || !AttributeComponent || !AttributeComponent->IsAlive())
+	if (UAbilitySystemComponent* ASC = GetAbilitySystemComponent())
 	{
-		return;
-	}
-
-	const AT4CPlayerState* PS = GetPlayerState<AT4CPlayerState>();
-	if (!PS || !PS->HasChosenClass())
-	{
-		return;
-	}
-
-	const FT4CAbility Ability = T4CAbilities::Get(PS->GetChosenClass(), Slot);
-
-	const float Now = GetWorld()->GetTimeSeconds();
-	if (Now - LastAbilityTime[Slot] < Ability.Cooldown)
-	{
-		return;
-	}
-	if (!AttributeComponent->SpendMana(Ability.ManaCost))
-	{
-		return;
-	}
-	LastAbilityTime[Slot] = Now;
-
-	const FT4CPrimaryStats& S = PS->GetPrimaryStats();
-	switch (Ability.Kind)
-	{
-	case ET4CAbilityKind::Projectile:
-	{
-		// Dano escala com o melhor atributo ofensivo (STR/INT/WIS).
-		const int32 Offense = FMath::Max3(S.Strength, S.Intelligence, S.Wisdom);
-		const float OffenseMul = 1.f + Offense * AttributeComponent->Balance.DamagePerStrength;
-
-		// Cor por elemento/perícia.
-		FLinearColor Color(0.9f, 0.9f, 1.0f); // físico: branco-aço
-		if (Ability.Name.Contains(TEXT("Fire")))            Color = FLinearColor(1.0f, 0.35f, 0.05f);
-		else if (Ability.Name.Contains(TEXT("Smite")))      Color = FLinearColor(1.0f, 0.85f, 0.25f);
-		else if (Ability.Name.Contains(TEXT("Backstab")))   Color = FLinearColor(0.6f, 0.1f, 0.85f);
-		else if (Ability.Name.Contains(TEXT("Power Shot"))) Color = FLinearColor(0.3f, 1.0f, 0.35f);
-		const float Scale = 0.35f + Ability.Power * 0.12f;
-
-		// A arma equipada soma ao dano base antes da escala de atributo/habilidade.
-		const float WeaponBase = BaseWeaponDamage + AttributeComponent->GetWeaponDamageBonus();
-		SpawnAttackProjectile(WeaponBase * OffenseMul * Ability.Power, Color, Scale);
-		break;
-	}
-	case ET4CAbilityKind::Heal:
-		AttributeComponent->Heal(Ability.Power + S.Wisdom * 1.5f);
-		break;
-
-	case ET4CAbilityKind::Parry:
-		AttributeComponent->ApplyTempDamageReduction(Ability.Power, Ability.Duration);
-		break;
+		ASC->AbilityLocalInputPressed(static_cast<int32>(ET4CAbilityInputID::AbilityE));
 	}
 }
 
@@ -351,18 +336,20 @@ FString AT4CCharacter::GetAbilityName(int32 Slot) const
 
 float AT4CCharacter::GetAbilityCooldownRemaining(int32 Slot) const
 {
-	if (Slot < 0 || Slot > 1 || !GetWorld())
+	UAbilitySystemComponent* ASC = GetAbilitySystemComponent();
+	if (Slot < 0 || Slot > 1 || !ASC)
 	{
 		return 0.f;
 	}
-	const AT4CPlayerState* PS = GetPlayerState<AT4CPlayerState>();
-	if (!PS || !PS->HasChosenClass())
+	// Consulta o GE de cooldown ativo que carrega a tag do slot (replicado ao dono).
+	const FGameplayTag CDTag = (Slot == 1) ? T4CTags::Cooldown_E : T4CTags::Cooldown_Q;
+	const FGameplayEffectQuery Query = FGameplayEffectQuery::MakeQuery_MatchAnyOwningTags(FGameplayTagContainer(CDTag));
+	float Remaining = 0.f;
+	for (const float Time : ASC->GetActiveEffectsTimeRemaining(Query))
 	{
-		return 0.f;
+		Remaining = FMath::Max(Remaining, Time);
 	}
-	const FT4CAbility Ability = T4CAbilities::Get(PS->GetChosenClass(), Slot);
-	const float Remaining = Ability.Cooldown - (GetWorld()->GetTimeSeconds() - LastAbilityTime[Slot]);
-	return FMath::Max(0.f, Remaining);
+	return Remaining;
 }
 
 void AT4CCharacter::HandleDeath(AActor* Killer)
