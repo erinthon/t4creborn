@@ -4,6 +4,7 @@
 #include "GAS/T4CAttributeSet.h"
 #include "GAS/T4CAbilityInputID.h"
 #include "GAS/Abilities/GA_ProjectileAttack.h"
+#include "GAS/Abilities/GA_MeleeAttack.h"
 #include "GAS/Abilities/GA_Heal.h"
 #include "GAS/Abilities/GA_Parry.h"
 #include "Attributes/T4CAbilityData.h"
@@ -24,6 +25,7 @@ namespace
 	{
 		switch (Kind)
 		{
+		case ET4CAbilityKind::Melee: return UGA_MeleeAttack::StaticClass();
 		case ET4CAbilityKind::Heal:  return UGA_Heal::StaticClass();
 		case ET4CAbilityKind::Parry: return UGA_Parry::StaticClass();
 		case ET4CAbilityKind::Projectile:

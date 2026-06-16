@@ -10,7 +10,7 @@ static FLinearColor ColorForAbility(const FString& Name)
 {
 	if (Name.Contains(TEXT("Fire")))       return FLinearColor(1.0f, 0.35f, 0.05f);
 	if (Name.Contains(TEXT("Smite")))      return FLinearColor(1.0f, 0.85f, 0.25f);
-	if (Name.Contains(TEXT("Backstab")))   return FLinearColor(0.6f, 0.1f, 0.85f);
+	if (Name.Contains(TEXT("Earth")))      return FLinearColor(0.5f, 0.35f, 0.15f);
 	if (Name.Contains(TEXT("Power Shot"))) return FLinearColor(0.3f, 1.0f, 0.35f);
 	return FLinearColor(0.9f, 0.9f, 1.0f); // físico: branco-aço
 }
@@ -34,8 +34,8 @@ void UGA_ProjectileAttack::ActivateAbility(const FGameplayAbilitySpecHandle Hand
 
 		if (Char && PS && Set)
 		{
-			const FT4CPrimaryStats& S = PS->GetPrimaryStats();
-			const int32 Offense = FMath::Max3(S.Strength, S.Intelligence, S.Wisdom);
+			// Escala pelo atributo da habilidade (Int p/ fogo, Wis p/ smite/earth, Agi p/ tiro).
+			const int32 Offense = PS->GetPrimaryStats().Get(Data.ScaleAttr);
 			const FT4CBalanceConstants Balance;
 			const float OffenseMul = 1.f + Offense * Balance.DamagePerStrength;
 			const float WeaponBase = Char->GetBaseWeaponDamage() + Set->GetWeaponDamageBonus();

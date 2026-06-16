@@ -5,7 +5,9 @@
 #include "GAS/T4CAttributeSet.h"
 #include "GAS/T4CGameplayTags.h"
 #include "GAS/T4CAbilityInputID.h"
+#include "GAS/Effects/T4CGameplayEffects.h"
 #include "AbilitySystemComponent.h"
+#include "AbilitySystemBlueprintLibrary.h"
 #include "Items/T4CInventoryComponent.h"
 #include "Items/T4CLootPickup.h"
 #include "Items/T4CItemData.h"
@@ -400,6 +402,55 @@ void AT4CCharacter::SpawnAttackProjectile(float Damage, FLinearColor Color, floa
 		Projectile->SetSource(GetAbilitySystemComponent());
 		Projectile->SetVisual(Color, Scale);
 		Projectile->FinishSpawning(SpawnTM);
+	}
+}
+
+void AT4CCharacter::DoMeleeSweep(float Range, float Damage)
+{
+	if (!HasAuthority())
+	{
+		return;
+	}
+	UAbilitySystemComponent* SourceASC = GetAbilitySystemComponent();
+	if (!SourceASC)
+	{
+		return;
+	}
+
+	const FVector Start = GetActorLocation();
+	const FVector Dir = FRotator(0.f, GetControlRotation().Yaw, 0.f).Vector();
+	const FVector End = Start + Dir * Range;
+
+	TArray<FHitResult> Hits;
+	const FCollisionShape Sphere = FCollisionShape::MakeSphere(90.f);
+	FCollisionQueryParams Params;
+	Params.AddIgnoredActor(this);
+	GetWorld()->SweepMultiByChannel(Hits, Start, End, FQuat::Identity, ECC_Pawn, Sphere, Params);
+
+	TSet<AActor*> Damaged;
+	for (const FHitResult& Hit : Hits)
+	{
+		AActor* Other = Hit.GetActor();
+		// Sem fogo amigo (não acerta outros jogadores) nem a si mesmo.
+		if (!Other || Other == this || Other->IsA(AT4CCharacter::StaticClass()) || Damaged.Contains(Other))
+		{
+			continue;
+		}
+		UAbilitySystemComponent* TargetASC = UAbilitySystemBlueprintLibrary::GetAbilitySystemComponent(Other);
+		if (!TargetASC)
+		{
+			continue;
+		}
+		Damaged.Add(Other);
+
+		FGameplayEffectContextHandle Ctx = SourceASC->MakeEffectContext();
+		Ctx.AddInstigator(this, this);
+		FGameplayEffectSpecHandle Spec = SourceASC->MakeOutgoingSpec(UGE_Damage::StaticClass(), 1.f, Ctx);
+		if (Spec.IsValid())
+		{
+			Spec.Data->SetSetByCallerMagnitude(T4CTags::Data_Damage, Damage);
+			SourceASC->ApplyGameplayEffectSpecToTarget(*Spec.Data, TargetASC);
+		}
 	}
 }
 
