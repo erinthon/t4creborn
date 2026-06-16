@@ -6,9 +6,13 @@
 #include "GAS/T4CGameplayTags.h"
 #include "GAS/T4CAbilityInputID.h"
 #include "GAS/Effects/T4CGameplayEffects.h"
-#include "Core/T4CVisuals.h"
 #include "AbilitySystemComponent.h"
 #include "AbilitySystemBlueprintLibrary.h"
+#include "Components/SkeletalMeshComponent.h"
+#include "Engine/SkeletalMesh.h"
+#include "Animation/AnimInstance.h"
+#include "Animation/AnimSequence.h"
+#include "Core/T4CVisuals.h"
 #include "Items/T4CInventoryComponent.h"
 #include "Items/T4CLootPickup.h"
 #include "Items/T4CItemData.h"
@@ -32,17 +36,41 @@ AT4CCharacter::AT4CCharacter()
 	GetCharacterMovement()->bOrientRotationToMovement = true;
 	GetCharacterMovement()->RotationRate = FRotator(0.f, 540.f, 0.f);
 
-	// Corpo visível: cilindro padrão do engine (sempre disponível, sem conteúdo de projeto).
-	BodyMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("BodyMesh"));
-	BodyMesh->SetupAttachment(RootComponent);
-	BodyMesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-	static ConstructorHelpers::FObjectFinder<UStaticMesh> CylinderMesh(
-		TEXT("/Engine/BasicShapes/Cylinder.Cylinder"));
-	if (CylinderMesh.Succeeded())
+	// Corpo visível: malha esqueletal do Manny (herdada de ACharacter via GetMesh()),
+	// com o AnimBlueprint de locomoção. Posicionada na base da cápsula, virada p/ +X.
+	GetMesh()->SetRelativeLocationAndRotation(FVector(0.f, 0.f, -89.f), FRotator(0.f, -90.f, 0.f));
+	static ConstructorHelpers::FObjectFinder<USkeletalMesh> MannyMesh(
+		TEXT("/Game/Characters/Mannequins/Meshes/SKM_Manny_Simple.SKM_Manny_Simple"));
+	if (MannyMesh.Succeeded())
 	{
-		BodyMesh->SetStaticMesh(CylinderMesh.Object);
-		// Cilindro do engine tem 100uu de altura; a cápsula tem ~176uu (half height 88).
-		BodyMesh->SetRelativeScale3D(FVector(0.68f, 0.68f, 1.76f));
+		GetMesh()->SetSkeletalMesh(MannyMesh.Object);
+	}
+	static ConstructorHelpers::FClassFinder<UAnimInstance> AnimBP(
+		TEXT("/Game/Characters/Mannequins/Anims/Unarmed/ABP_Unarmed"));
+	if (AnimBP.Succeeded())
+	{
+		GetMesh()->SetAnimInstanceClass(AnimBP.Class);
+	}
+
+	// Animações de ataque: só os dois socos (direito/esquerdo), alternados em combo.
+	static ConstructorHelpers::FObjectFinder<UAnimSequence> Atk1(
+		TEXT("/Game/Characters/Mannequins/Anims/Unarmed/Attack/MM_Attack_01.MM_Attack_01"));
+	static ConstructorHelpers::FObjectFinder<UAnimSequence> Atk2(
+		TEXT("/Game/Characters/Mannequins/Anims/Unarmed/Attack/MM_Attack_02.MM_Attack_02"));
+	if (Atk1.Succeeded()) AttackAnims.Add(Atk1.Object);
+	if (Atk2.Succeeded()) AttackAnims.Add(Atk2.Object);
+
+	// Arma placeholder: lâmina de primitiva presa ao osso hand_r (trocar por malha real depois).
+	WeaponMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("WeaponMesh"));
+	WeaponMesh->SetupAttachment(GetMesh(), TEXT("hand_r"));
+	WeaponMesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	static ConstructorHelpers::FObjectFinder<UStaticMesh> BladeMesh(TEXT("/Engine/BasicShapes/Cube.Cube"));
+	if (BladeMesh.Succeeded())
+	{
+		WeaponMesh->SetStaticMesh(BladeMesh.Object);
+		// Lâmina comprida ao longo do X local da mão; transform inicial (ajustar visualmente).
+		WeaponMesh->SetRelativeScale3D(FVector(0.9f, 0.05f, 0.05f));
+		WeaponMesh->SetRelativeLocationAndRotation(FVector(38.f, 0.f, 0.f), FRotator(0.f, 0.f, 0.f));
 	}
 
 	CameraBoom = CreateDefaultSubobject<USpringArmComponent>(TEXT("CameraBoom"));
@@ -63,8 +91,8 @@ void AT4CCharacter::BeginPlay()
 {
 	Super::BeginPlay();
 
-	// Cor do corpo: azul-aço (distingue jogadores dos monstros vermelhos).
-	T4CVisuals::ApplyBodyColor(BodyMesh, this, FLinearColor(0.2f, 0.45f, 0.95f));
+	// Cor de aço na lâmina placeholder.
+	T4CVisuals::ApplyBodyColor(WeaponMesh, this, FLinearColor(0.7f, 0.72f, 0.8f));
 }
 
 UAbilitySystemComponent* AT4CCharacter::GetAbilitySystemComponent() const
@@ -466,6 +494,31 @@ void AT4CCharacter::DoMeleeSweep(float Range, float Damage)
 			Spec.Data->SetSetByCallerMagnitude(T4CTags::Data_Damage, Damage);
 			SourceASC->ApplyGameplayEffectSpecToTarget(*Spec.Data, TargetASC);
 		}
+	}
+}
+
+void AT4CCharacter::PlayAttackAnim()
+{
+	if (!HasAuthority() || AttackAnims.Num() == 0)
+	{
+		return;
+	}
+	// Alterna em sequência (soco direito → esquerdo → ...) para um combo limpo.
+	const int32 Index = AttackComboIndex % AttackAnims.Num();
+	AttackComboIndex = (AttackComboIndex + 1) % AttackAnims.Num();
+	MulticastPlayAttack(Index);
+}
+
+void AT4CCharacter::MulticastPlayAttack_Implementation(int32 Index)
+{
+	if (!AttackAnims.IsValidIndex(Index) || !AttackAnims[Index] || !GetMesh())
+	{
+		return;
+	}
+	if (UAnimInstance* Anim = GetMesh()->GetAnimInstance())
+	{
+		// Embrulha a sequence numa montage dinâmica no DefaultSlot (sobrepõe a locomoção).
+		Anim->PlaySlotAnimationAsDynamicMontage(AttackAnims[Index], TEXT("DefaultSlot"), 0.1f, 0.15f, 1.3f);
 	}
 }
 

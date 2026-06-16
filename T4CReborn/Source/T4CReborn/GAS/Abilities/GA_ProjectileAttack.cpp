@@ -43,6 +43,7 @@ void UGA_ProjectileAttack::ActivateAbility(const FGameplayAbilitySpecHandle Hand
 			const float FinalDamage = WeaponBase * OffenseMul * Data.Power;
 
 			Char->FireAbilityProjectile(FinalDamage, ColorForAbility(Data.Name), Scale);
+			Char->PlayAttackAnim();
 			UE_LOG(LogTemp, Verbose, TEXT("[T4C] GA Projectile '%s' disparada (dano %.0f)"), *Data.Name, FinalDamage);
 		}
 	}

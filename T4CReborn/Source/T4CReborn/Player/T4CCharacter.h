@@ -11,6 +11,7 @@ class USpringArmComponent;
 class UCameraComponent;
 class UStaticMeshComponent;
 class UT4CAttributeSet;
+class UAnimSequenceBase;
 
 /**
  * Pawn jogável de Althea. Câmera em terceira pessoa (action-RPG).
@@ -47,8 +48,12 @@ protected:
 	/** Servidor e cliente: liga o ASC do PlayerState a este avatar. */
 	void InitAbilitySystem();
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "T4C")
-	TObjectPtr<UStaticMeshComponent> BodyMesh;
+	// O corpo visível é a malha esqueletal herdada de ACharacter (GetMesh()):
+	// Manny (SKM_Manny_Simple) + AnimBlueprint ABP_Unarmed, montados no construtor.
+
+	/** Arma na mão direita (placeholder de primitiva; trocar por malha real depois). */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Combat")
+	TObjectPtr<UStaticMeshComponent> WeaponMesh;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Camera")
 	TObjectPtr<USpringArmComponent> CameraBoom;
@@ -110,6 +115,14 @@ protected:
 	UFUNCTION(Server, Reliable)
 	void ServerBuy();
 
+	/** Toca a animação de ataque em todos os clientes. */
+	UFUNCTION(NetMulticast, Unreliable)
+	void MulticastPlayAttack(int32 Index);
+
+	/** Animações de ataque (sequences) embrulhadas em montage dinâmica ao usar. */
+	UPROPERTY(EditDefaultsOnly, Category = "Combat")
+	TArray<TObjectPtr<UAnimSequenceBase>> AttackAnims;
+
 public:
 	/** Tecla F: coleta loot próximo ou interage com o NPC mais próximo. */
 	void Interact();
@@ -136,10 +149,14 @@ public:
 	/** Servidor: golpe melee — sweep de esfera curto à frente, aplica dano via ASC. */
 	void DoMeleeSweep(float Range, float Damage);
 
+	/** Servidor: toca uma animação de ataque (replicada a todos via multicast). */
+	void PlayAttackAnim();
+
 protected:
 	/** Servidor: dispara um projétil para frente, com dano, cor e tamanho. */
 	void SpawnAttackProjectile(float Damage, FLinearColor Color, float Scale);
 
 private:
 	bool bDeadHandled = false;
+	int32 AttackComboIndex = 0; // alterna as animações de ataque (combo)
 };
