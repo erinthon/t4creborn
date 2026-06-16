@@ -38,9 +38,14 @@ Marcos incrementais. Cada fase entrega algo jogável/verificável.
       (ver `docs/GAS_MIGRATION.md`)
 - [ ] Mais zonas (Raven's Dust), dungeons, mini-bosses
 - [ ] NPCs de treino de perícia, lojas
-- [~] Dedicated server + persistência — **persistência em disco (USaveGame) feita**:
-      classe/atributos/nível/XP/inventário por jogador, load no 1º spawn, autosave + save no
-      logout (`Core/T4CSaveGame`). Falta: dedicated server + backend de DB.
+- [~] Dedicated server + persistência:
+      - **Persistência via serviço HTTP + DB feita** — `Services/persistence_service.py`
+        (Python stdlib + SQLite) guarda os personagens; o servidor de jogo fala HTTP via
+        `UT4CPersistenceSubsystem`; `AT4CPlayerState` serializa em JSON; load no 1º spawn,
+        autosave + save no logout. Arquitetura pronta p/ trocar SQLite→Postgres sem tocar o jogo.
+      - **Dedicated server**: `T4CRebornServer.Target.cs` adicionado, mas o engine instalado
+        (binário) não compila targets Server — requer engine compilado da fonte. A persistência
+        roda igual no listen server (também autoritativo).
 - [ ] Evento global da "4ª Vinda"
 
 ---

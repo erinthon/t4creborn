@@ -41,12 +41,18 @@ public:
 	/** Servidor: grava o personagem no slot (nome do jogador). Só se tem classe. */
 	void SaveCharacter();
 
-	/** Servidor: carrega o slot do jogador uma única vez (no 1º spawn). Aplica
-	 *  classe/atributos/progressão/inventário e empurra ao ASC. */
+	/** Servidor: dispara o load do personagem uma única vez (no 1º spawn); aplica
+	 *  no callback assíncrono do serviço de persistência. */
 	void LoadCharacterOnce();
 
-	/** Nome do slot de save, derivado (sanitizado) do nome do jogador. */
+	/** Id de persistência, derivado (sanitizado) do nome do jogador. */
 	FString GetSaveSlotName() const;
+
+	/** Serializa o personagem (classe/atributos/progressão/inventário) em JSON. */
+	FString SerializeToJson() const;
+
+	/** Servidor: aplica um personagem vindo de JSON (do serviço de persistência). */
+	void ApplyFromJson(const FString& Json);
 
 	UFUNCTION(BlueprintPure, Category = "T4C|Progression")
 	const FT4CPrimaryStats& GetPrimaryStats() const { return PrimaryStats; }
@@ -153,6 +159,9 @@ protected:
 	static constexpr int32 SkillPointsPerLevel = 15;
 
 private:
-	/** Garante que o load do disco ocorre uma única vez por sessão. */
+	/** Callback do serviço de persistência (GET). */
+	void OnCharacterLoaded(bool bFound, const FString& Json);
+
+	/** Garante que o load ocorre uma única vez por sessão. */
 	bool bSaveLoaded = false;
 };

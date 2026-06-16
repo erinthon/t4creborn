@@ -8,9 +8,13 @@
 #include "GAS/Abilities/GA_Parry.h"
 #include "Attributes/T4CAbilityData.h"
 #include "Items/T4CInventoryComponent.h"
-#include "Core/T4CSaveGame.h"
+#include "Core/T4CPersistenceSubsystem.h"
 #include "Abilities/GameplayAbility.h"
-#include "Kismet/GameplayStatics.h"
+#include "Engine/GameInstance.h"
+#include "Dom/JsonObject.h"
+#include "Dom/JsonValue.h"
+#include "Serialization/JsonReader.h"
+#include "Serialization/JsonSerializer.h"
 #include "Net/UnrealNetwork.h"
 
 namespace
@@ -239,6 +243,21 @@ FString AT4CPlayerState::GetSaveSlotName() const
 	return FString::Printf(TEXT("T4C_%s"), *Clean);
 }
 
+static UT4CPersistenceSubsystem* GetPersistence(const AActor* Actor)
+{
+	if (Actor)
+	{
+		if (const UWorld* World = Actor->GetWorld())
+		{
+			if (UGameInstance* GI = World->GetGameInstance())
+			{
+				return GI->GetSubsystem<UT4CPersistenceSubsystem>();
+			}
+		}
+	}
+	return nullptr;
+}
+
 void AT4CPlayerState::SaveCharacter()
 {
 	// Só persiste personagens que já escolheram classe (evita salvar vazio).
@@ -246,29 +265,10 @@ void AT4CPlayerState::SaveCharacter()
 	{
 		return;
 	}
-
-	UT4CSaveGame* Save = Cast<UT4CSaveGame>(UGameplayStatics::CreateSaveGameObject(UT4CSaveGame::StaticClass()));
-	if (!Save)
+	if (UT4CPersistenceSubsystem* Persistence = GetPersistence(this))
 	{
-		return;
+		Persistence->SaveCharacter(GetSaveSlotName(), SerializeToJson());
 	}
-	Save->bHasChosenClass = bHasChosenClass;
-	Save->ChosenClass = ChosenClass;
-	Save->PrimaryStats = PrimaryStats;
-	Save->CharacterLevel = CharacterLevel;
-	Save->Experience = Experience;
-	Save->UnspentStatPoints = UnspentStatPoints;
-	Save->UnspentSkillPoints = UnspentSkillPoints;
-	if (Inventory)
-	{
-		Save->Items = Inventory->GetItems();
-		Save->EquippedWeaponIndex = Inventory->GetEquippedWeaponIndex();
-		Save->EquippedArmorIndex = Inventory->GetEquippedArmorIndex();
-	}
-
-	UGameplayStatics::SaveGameToSlot(Save, GetSaveSlotName(), 0);
-	UE_LOG(LogTemp, Display, TEXT("[T4C] Salvou %s (classe %s, nivel %d, %d itens)"),
-		*GetPlayerName(), *GetClassName(), CharacterLevel, Save->Items.Num());
 }
 
 void AT4CPlayerState::LoadCharacterOnce()
@@ -279,36 +279,140 @@ void AT4CPlayerState::LoadCharacterOnce()
 	}
 	bSaveLoaded = true;
 
-	const FString Slot = GetSaveSlotName();
-	if (!UGameplayStatics::DoesSaveGameExist(Slot, 0))
+	if (UT4CPersistenceSubsystem* Persistence = GetPersistence(this))
 	{
-		return; // personagem novo: segue para o menu de classe
+		// Assíncrono: o personagem nasce com padrões e é corrigido no callback.
+		Persistence->LoadCharacter(GetSaveSlotName(),
+			FT4COnCharacterLoaded::CreateUObject(this, &AT4CPlayerState::OnCharacterLoaded));
 	}
+}
 
-	UT4CSaveGame* Save = Cast<UT4CSaveGame>(UGameplayStatics::LoadGameFromSlot(Slot, 0));
-	if (!Save || !Save->bHasChosenClass)
+void AT4CPlayerState::OnCharacterLoaded(bool bFound, const FString& Json)
+{
+	if (bFound)
+	{
+		ApplyFromJson(Json);
+	}
+	else
+	{
+		UE_LOG(LogTemp, Display, TEXT("[T4C] Sem save para %s (personagem novo)"), *GetPlayerName());
+	}
+}
+
+FString AT4CPlayerState::SerializeToJson() const
+{
+	const TSharedRef<FJsonObject> Root = MakeShared<FJsonObject>();
+	Root->SetNumberField(TEXT("version"), 1);
+	Root->SetBoolField(TEXT("hasChosenClass"), bHasChosenClass);
+	Root->SetNumberField(TEXT("class"), static_cast<int32>(ChosenClass));
+
+	const TSharedRef<FJsonObject> Stats = MakeShared<FJsonObject>();
+	Stats->SetNumberField(TEXT("str"), PrimaryStats.Strength);
+	Stats->SetNumberField(TEXT("end"), PrimaryStats.Endurance);
+	Stats->SetNumberField(TEXT("agi"), PrimaryStats.Agility);
+	Stats->SetNumberField(TEXT("int"), PrimaryStats.Intelligence);
+	Stats->SetNumberField(TEXT("wis"), PrimaryStats.Wisdom);
+	Root->SetObjectField(TEXT("stats"), Stats);
+
+	Root->SetNumberField(TEXT("level"), CharacterLevel);
+	Root->SetNumberField(TEXT("xp"), Experience);
+	Root->SetNumberField(TEXT("unspentStat"), UnspentStatPoints);
+	Root->SetNumberField(TEXT("unspentSkill"), UnspentSkillPoints);
+
+	int32 WeaponIdx = -1, ArmorIdx = -1;
+	TArray<TSharedPtr<FJsonValue>> ItemsJson;
+	if (Inventory)
+	{
+		WeaponIdx = Inventory->GetEquippedWeaponIndex();
+		ArmorIdx = Inventory->GetEquippedArmorIndex();
+		for (const FT4CItem& Item : Inventory->GetItems())
+		{
+			const TSharedRef<FJsonObject> J = MakeShared<FJsonObject>();
+			J->SetStringField(TEXT("id"), Item.Id.ToString());
+			J->SetStringField(TEXT("name"), Item.Name);
+			J->SetNumberField(TEXT("type"), static_cast<int32>(Item.Type));
+			J->SetNumberField(TEXT("weaponDamage"), Item.WeaponDamage);
+			J->SetNumberField(TEXT("armor"), Item.Armor);
+			J->SetNumberField(TEXT("heal"), Item.HealAmount);
+			J->SetNumberField(TEXT("rarity"), Item.Rarity);
+			ItemsJson.Add(MakeShared<FJsonValueObject>(J));
+		}
+	}
+	Root->SetNumberField(TEXT("equippedWeapon"), WeaponIdx);
+	Root->SetNumberField(TEXT("equippedArmor"), ArmorIdx);
+	Root->SetArrayField(TEXT("items"), ItemsJson);
+
+	FString Out;
+	const TSharedRef<TJsonWriter<>> Writer = TJsonWriterFactory<>::Create(&Out);
+	FJsonSerializer::Serialize(Root, Writer);
+	return Out;
+}
+
+void AT4CPlayerState::ApplyFromJson(const FString& Json)
+{
+	if (!HasAuthority())
+	{
+		return;
+	}
+	TSharedPtr<FJsonObject> Root;
+	const TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(Json);
+	if (!FJsonSerializer::Deserialize(Reader, Root) || !Root.IsValid() || !Root->GetBoolField(TEXT("hasChosenClass")))
 	{
 		return;
 	}
 
-	ChosenClass = Save->ChosenClass;
+	ChosenClass = static_cast<ET4CClass>(Root->GetIntegerField(TEXT("class")));
 	bHasChosenClass = true;
-	PrimaryStats = Save->PrimaryStats;
-	CharacterLevel = Save->CharacterLevel;
-	Experience = Save->Experience;
-	UnspentStatPoints = Save->UnspentStatPoints;
-	UnspentSkillPoints = Save->UnspentSkillPoints;
+
+	const TSharedPtr<FJsonObject>* Stats;
+	if (Root->TryGetObjectField(TEXT("stats"), Stats))
+	{
+		PrimaryStats.Strength = (*Stats)->GetIntegerField(TEXT("str"));
+		PrimaryStats.Endurance = (*Stats)->GetIntegerField(TEXT("end"));
+		PrimaryStats.Agility = (*Stats)->GetIntegerField(TEXT("agi"));
+		PrimaryStats.Intelligence = (*Stats)->GetIntegerField(TEXT("int"));
+		PrimaryStats.Wisdom = (*Stats)->GetIntegerField(TEXT("wis"));
+	}
+	CharacterLevel = Root->GetIntegerField(TEXT("level"));
+	Experience = Root->GetIntegerField(TEXT("xp"));
+	UnspentStatPoints = Root->GetIntegerField(TEXT("unspentStat"));
+	UnspentSkillPoints = Root->GetIntegerField(TEXT("unspentSkill"));
+
+	TArray<FT4CItem> Items;
+	const TArray<TSharedPtr<FJsonValue>>* ItemsArr;
+	if (Root->TryGetArrayField(TEXT("items"), ItemsArr))
+	{
+		for (const TSharedPtr<FJsonValue>& V : *ItemsArr)
+		{
+			const TSharedPtr<FJsonObject> J = V->AsObject();
+			if (!J.IsValid())
+			{
+				continue;
+			}
+			FT4CItem Item;
+			Item.Id = FName(*J->GetStringField(TEXT("id")));
+			Item.Name = J->GetStringField(TEXT("name"));
+			Item.Type = static_cast<ET4CItemType>(J->GetIntegerField(TEXT("type")));
+			Item.WeaponDamage = J->GetNumberField(TEXT("weaponDamage"));
+			Item.Armor = J->GetNumberField(TEXT("armor"));
+			Item.HealAmount = J->GetNumberField(TEXT("heal"));
+			Item.Rarity = J->GetIntegerField(TEXT("rarity"));
+			Items.Add(Item);
+		}
+	}
+	const int32 WeaponIdx = Root->GetIntegerField(TEXT("equippedWeapon"));
+	const int32 ArmorIdx = Root->GetIntegerField(TEXT("equippedArmor"));
 
 	PushStatsToASC(/*bRefill=*/true);
 	GrantClassAbilities();
 	if (Inventory)
 	{
-		Inventory->RestoreFromSave(Save->Items, Save->EquippedWeaponIndex, Save->EquippedArmorIndex);
+		Inventory->RestoreFromSave(Items, WeaponIdx, ArmorIdx);
 	}
 	OnStatsChanged.Broadcast();
 
 	UE_LOG(LogTemp, Display, TEXT("[T4C] Carregou %s (classe %s, nivel %d, %d itens)"),
-		*GetPlayerName(), *GetClassName(), CharacterLevel, Save->Items.Num());
+		*GetPlayerName(), *GetClassName(), CharacterLevel, Items.Num());
 }
 
 void AT4CPlayerState::OnRep_Progression()
