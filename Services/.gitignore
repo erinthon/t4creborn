@@ -1,0 +1,4 @@
+# Artefatos de runtime do serviço de persistência (não versionar).
+*.db
+*.db-journal
+*.log

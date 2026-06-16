@@ -24,7 +24,11 @@ public class T4CReborn : ModuleRules
 			// GameplayAbilities, GameplayTags e GameplayTasks.
 			"GameplayAbilities",
 			"GameplayTags",
-			"GameplayTasks"
+			"GameplayTasks",
+			// Persistência: cliente HTTP + JSON para falar com o serviço externo.
+			"HTTP",
+			"Json",
+			"JsonUtilities"
 		});
 
 		PrivateDependencyModuleNames.AddRange(new string[]

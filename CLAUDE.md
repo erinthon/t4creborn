@@ -41,7 +41,9 @@ There is **no test suite**. Verification is done by launching real multiplayer s
 
 **Launch a multiplayer session**: host = listen server, client connects to `127.0.0.1`. `Scripts/play_multiplayer.ps1` does this; for verification launch each with `-abslog="...host.log"` and `-game -windowed`. Map is `/Game/Maps/L_Arakas_Test`; add `?listen` for the host.
 
-**Driving gameplay deterministically**: window-focus input is unreliable headless, so use the `-T4CAutoTest` flag — `AT4CGameMode` then auto-picks the Mage class for each player and fires Q/E on a timer. Combine with `-LogCmds="LogTemp Verbose"`. This is the primary way to exercise combat/abilities without a human.
+**Driving gameplay deterministically**: window-focus input is unreliable headless, so use the `-T4CAutoTest` flag — `AT4CGameMode` then auto-picks a class for each player, gives gear, and fires Q/E on a timer (also grants XP + saves once, for persistence tests). Combine with `-LogCmds="LogTemp Verbose"`. This is the primary way to exercise combat/abilities without a human.
+
+**Persistence**: characters are saved via an external HTTP service (`Services/persistence_service.py`, Python stdlib + SQLite) — start it with `Scripts/run_persistence_service.ps1` (or `python Services/persistence_service.py`) before testing save/load. The game server talks to it through `UT4CPersistenceSubsystem` (URL in `Config/DefaultGame.ini` `[T4C.Persistence] BaseUrl`, **quoted** — UE's INI parser truncates an unquoted `//`). A true **dedicated server** (`T4CRebornServer.Target.cs`) needs a source-built engine — the launcher binary refuses Server targets; the listen server is the authoritative stand-in.
 
 **Checking results**: grep the `Saved/Logs/*.log` for `[T4C]` markers (spawns, deaths, loot, level-ups, `[T4C][AutoTest]`), `Welcomed by server`/`Join succeeded` (connection), and absence of `Critical error`/`LogAbilitySystem: Error`.
 
