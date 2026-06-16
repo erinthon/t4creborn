@@ -109,6 +109,8 @@ void AT4CCharacter::PossessedBy(AController* NewController)
 		if (AT4CPlayerState* PS = GetPlayerState<AT4CPlayerState>())
 		{
 			PS->InitializeAttributes();
+			// Carrega o personagem salvo no 1º spawn (no-op em respawns e sem save).
+			PS->LoadCharacterOnce();
 		}
 		UE_LOG(LogTemp, Display, TEXT("[T4C] %s nasceu em %s"), *GetName(), *GetActorLocation().ToString());
 	}

@@ -37,6 +37,17 @@ public:
 	 *  Chamado pelo Character no PossessedBy (também serve para refill no respawn). */
 	void InitializeAttributes();
 
+	// --- Persistência (USaveGame em disco) ---
+	/** Servidor: grava o personagem no slot (nome do jogador). Só se tem classe. */
+	void SaveCharacter();
+
+	/** Servidor: carrega o slot do jogador uma única vez (no 1º spawn). Aplica
+	 *  classe/atributos/progressão/inventário e empurra ao ASC. */
+	void LoadCharacterOnce();
+
+	/** Nome do slot de save, derivado (sanitizado) do nome do jogador. */
+	FString GetSaveSlotName() const;
+
 	UFUNCTION(BlueprintPure, Category = "T4C|Progression")
 	const FT4CPrimaryStats& GetPrimaryStats() const { return PrimaryStats; }
 
@@ -140,4 +151,8 @@ protected:
 	// Pontos concedidos por nível — espelham FT4CBalanceConstants.
 	static constexpr int32 StatPointsPerLevel = 5;
 	static constexpr int32 SkillPointsPerLevel = 15;
+
+private:
+	/** Garante que o load do disco ocorre uma única vez por sessão. */
+	bool bSaveLoaded = false;
 };

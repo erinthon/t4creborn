@@ -21,6 +21,9 @@ public:
 
 	virtual void BeginPlay() override;
 
+	/** Salva o personagem que está saindo (persistência). */
+	virtual void Logout(AController* Exiting) override;
+
 	/** Distribui os jogadores entre os PlayerStarts (round-robin), evitando
 	 *  que dois nasçam no mesmo ponto e se empurrem. */
 	virtual AActor* ChoosePlayerStart_Implementation(AController* Player) override;
@@ -57,8 +60,16 @@ protected:
 
 	void SpawnMonster(FVector Location);
 
+	/** Servidor: salva todos os personagens conectados (autosave periódico). */
+	void SaveAllPlayers();
+
+	/** Segundos entre autosaves. */
+	UPROPERTY(EditDefaultsOnly, Category = "T4C|Persistence")
+	float AutoSaveInterval = 30.f;
+
 private:
 	int32 NextStartIndex = 0;
+	FTimerHandle AutoSaveTimer;
 
 	// --- Harness de auto-teste (headless), ativado por -T4CAutoTest ---
 	// Escolhe uma classe para cada jogador e usa Q/E periodicamente, permitindo

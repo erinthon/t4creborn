@@ -48,11 +48,41 @@ void AT4CGameMode::BeginPlay()
 		SpawnMonster(Point);
 	}
 
+	// Autosave periódico dos personagens (persistência).
+	GetWorldTimerManager().SetTimer(AutoSaveTimer, this, &AT4CGameMode::SaveAllPlayers,
+		AutoSaveInterval, true, AutoSaveInterval);
+
 	bAutoTest = FParse::Param(FCommandLine::Get(), TEXT("T4CAutoTest"));
 	if (bAutoTest)
 	{
 		UE_LOG(LogTemp, Display, TEXT("[T4C][AutoTest] ativado"));
 		GetWorldTimerManager().SetTimer(AutoTestTimer, this, &AT4CGameMode::RunAutoTest, 2.0f, true, 3.0f);
+	}
+}
+
+void AT4CGameMode::Logout(AController* Exiting)
+{
+	if (Exiting)
+	{
+		if (AT4CPlayerState* PS = Exiting->GetPlayerState<AT4CPlayerState>())
+		{
+			PS->SaveCharacter();
+		}
+	}
+	Super::Logout(Exiting);
+}
+
+void AT4CGameMode::SaveAllPlayers()
+{
+	for (FConstPlayerControllerIterator It = GetWorld()->GetPlayerControllerIterator(); It; ++It)
+	{
+		if (APlayerController* PC = It->Get())
+		{
+			if (AT4CPlayerState* PS = PC->GetPlayerState<AT4CPlayerState>())
+			{
+				PS->SaveCharacter();
+			}
+		}
 	}
 }
 
@@ -76,7 +106,8 @@ void AT4CGameMode::RunAutoTest()
 			continue;
 		}
 
-		// 2) Uma vez: dá uma arma e uma armadura para exercitar o GE de equipamento.
+		// 2) Personagem novo (inventário vazio): dá arma+armadura, ganha XP e SALVA
+		//    imediatamente — assim o slot existe para o próximo lançamento carregar.
 		if (UT4CInventoryComponent* Inv = PS->GetInventory())
 		{
 			if (Inv->GetItems().Num() == 0)
@@ -89,6 +120,8 @@ void AT4CGameMode::RunAutoTest()
 				{
 					if (Item.Type == ET4CItemType::Armor && Item.Armor >= 7.f) { Inv->AddItem(Item); break; }
 				}
+				PS->GrantExperience(250); // sobe de nível de forma determinística
+				PS->SaveCharacter();
 			}
 		}
 

@@ -38,7 +38,9 @@ Marcos incrementais. Cada fase entrega algo jogável/verificável.
       (ver `docs/GAS_MIGRATION.md`)
 - [ ] Mais zonas (Raven's Dust), dungeons, mini-bosses
 - [ ] NPCs de treino de perícia, lojas
-- [ ] Dedicated server + persistência (DB)
+- [~] Dedicated server + persistência — **persistência em disco (USaveGame) feita**:
+      classe/atributos/nível/XP/inventário por jogador, load no 1º spawn, autosave + save no
+      logout (`Core/T4CSaveGame`). Falta: dedicated server + backend de DB.
 - [ ] Evento global da "4ª Vinda"
 
 ---
