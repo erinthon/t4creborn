@@ -46,6 +46,15 @@ struct FT4CItem
 
 	bool IsValid() const { return !Id.IsNone(); }
 
+	/** Valor de compra em ouro (derivado de raridade + atributos do item). */
+	int32 BuyValue() const
+	{
+		return FMath::RoundToInt(10.f + Rarity * 25.f + WeaponDamage * 2.f + Armor * 3.f + HealAmount * 0.4f);
+	}
+
+	/** Valor de venda em ouro (metade do de compra, mín. 1). */
+	int32 SellValue() const { return FMath::Max(1, BuyValue() / 2); }
+
 	/** Cor associada à raridade (mundo e HUD). */
 	FLinearColor RarityColor() const
 	{

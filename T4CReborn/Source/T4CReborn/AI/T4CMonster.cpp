@@ -151,6 +151,7 @@ void AT4CMonster::HandleDeath(AActor* Killer)
 		if (AT4CPlayerState* KillerPS = KillerChar->GetPlayerState<AT4CPlayerState>())
 		{
 			KillerPS->GrantExperience(XPReward);
+			KillerPS->GrantGold(FMath::RandRange(8, 18));
 		}
 	}
 

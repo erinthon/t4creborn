@@ -69,6 +69,20 @@ public:
 	UFUNCTION(BlueprintPure, Category = "T4C|Progression")
 	int32 GetExperience() const { return Experience; }
 
+	UFUNCTION(BlueprintPure, Category = "T4C|Economy")
+	int32 GetGold() const { return Gold; }
+
+	/** Servidor: concede/gasta ouro. SpendGold retorna false se faltar. */
+	void GrantGold(int32 Amount);
+	bool SpendGold(int32 Amount);
+
+	/** Servidor: gasta pontos de perícia para elevar o atributo primário da classe
+	 *  (papel do treinador). Retorna true se treinou. */
+	bool TrainPrimaryAttribute();
+
+	/** Custo em pontos de perícia por +1 de atributo no treinador. */
+	static constexpr int32 TrainCostSkillPoints = 3;
+
 	/** Servidor: concede XP e processa level-ups. */
 	void GrantExperience(int32 Amount);
 
@@ -135,6 +149,9 @@ protected:
 
 	UPROPERTY(ReplicatedUsing = OnRep_Progression, VisibleAnywhere, Category = "T4C|Progression")
 	bool bHasChosenClass = false;
+
+	UPROPERTY(ReplicatedUsing = OnRep_Progression, VisibleAnywhere, Category = "T4C|Economy")
+	int32 Gold = 0;
 
 	UFUNCTION()
 	void OnRep_Progression();

@@ -67,4 +67,21 @@ namespace T4CClasses
 	{
 		return static_cast<ET4CClass>(FMath::Clamp(Index, 0, Count - 1));
 	}
+
+	/** Atributo "primário" da classe — o que o treinador eleva. */
+	inline ET4CAttribute PrimaryAttribute(ET4CClass Class)
+	{
+		switch (Class)
+		{
+		case ET4CClass::Warrior:    return ET4CAttribute::Strength;
+		case ET4CClass::Mage:       return ET4CAttribute::Intelligence;
+		case ET4CClass::Paladin:    return ET4CAttribute::Strength;
+		case ET4CClass::BattleMage: return ET4CAttribute::Intelligence;
+		case ET4CClass::Archer:     return ET4CAttribute::Agility;
+		case ET4CClass::Cleric:     return ET4CAttribute::Wisdom;
+		case ET4CClass::Rogue:      return ET4CAttribute::Agility;
+		case ET4CClass::Healer:     return ET4CAttribute::Wisdom;
+		default:                    return ET4CAttribute::Strength;
+		}
+	}
 }

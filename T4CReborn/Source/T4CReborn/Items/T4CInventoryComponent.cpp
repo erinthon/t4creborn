@@ -126,6 +126,43 @@ void UT4CInventoryComponent::RestoreFromSave(const TArray<FT4CItem>& InItems, in
 	OnInventoryChanged.Broadcast();
 }
 
+int32 UT4CInventoryComponent::SellAllUnequipped()
+{
+	if (GetOwnerRole() != ROLE_Authority)
+	{
+		return 0;
+	}
+
+	int32 Total = 0;
+	TArray<FT4CItem> Kept;
+	int32 NewWeapon = -1, NewArmor = -1;
+	for (int32 i = 0; i < Items.Num(); ++i)
+	{
+		if (i == EquippedWeaponIndex || i == EquippedArmorIndex)
+		{
+			const int32 NewIdx = Kept.Add(Items[i]);
+			if (i == EquippedWeaponIndex) NewWeapon = NewIdx;
+			if (i == EquippedArmorIndex)  NewArmor = NewIdx;
+		}
+		else
+		{
+			Total += Items[i].SellValue();
+		}
+	}
+
+	if (Kept.Num() == Items.Num())
+	{
+		return 0; // nada para vender (tudo equipado ou vazio)
+	}
+
+	Items = Kept;
+	EquippedWeaponIndex = NewWeapon;
+	EquippedArmorIndex = NewArmor;
+	RefreshEquipmentBonuses();
+	OnInventoryChanged.Broadcast();
+	return Total;
+}
+
 void UT4CInventoryComponent::RefreshEquipmentBonuses()
 {
 	if (GetOwnerRole() != ROLE_Authority)

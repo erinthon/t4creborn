@@ -8,6 +8,8 @@
 #include "AbilitySystemComponent.h"
 #include "Items/T4CInventoryComponent.h"
 #include "Items/T4CLootPickup.h"
+#include "Items/T4CItemData.h"
+#include "NPC/T4CNpc.h"
 #include "EngineUtils.h"
 #include "GameFramework/SpringArmComponent.h"
 #include "Camera/CameraComponent.h"
@@ -156,9 +158,30 @@ void AT4CCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCompon
 	// Recomeçar / trocar de classe (tecla R).
 	PlayerInputComponent->BindAction(TEXT("ResetClass"), IE_Pressed, this, &AT4CCharacter::ResetClass);
 
-	// Loot: F coleta o drop próximo; G usa uma poção.
+	// Loot: F coleta o drop próximo (ou interage com NPC); G usa poção; B compra.
 	PlayerInputComponent->BindAction(TEXT("Interact"), IE_Pressed, this, &AT4CCharacter::Interact);
 	PlayerInputComponent->BindAction(TEXT("UsePotion"), IE_Pressed, this, &AT4CCharacter::UsePotion);
+	PlayerInputComponent->BindAction(TEXT("Buy"), IE_Pressed, this, &AT4CCharacter::Buy);
+}
+
+// Helper: NPC mais próximo dentro do alcance de interação.
+static AT4CNpc* FindNearestNpc(UWorld* World, const FVector& From)
+{
+	AT4CNpc* Nearest = nullptr;
+	float BestDistSq = TNumericLimits<float>::Max();
+	for (TActorIterator<AT4CNpc> It(World); It; ++It)
+	{
+		AT4CNpc* Npc = *It;
+		if (!Npc) continue;
+		const float DistSq = FVector::DistSquared(From, Npc->GetActorLocation());
+		const float Reach = Npc->GetInteractRadius();
+		if (DistSq <= Reach * Reach && DistSq < BestDistSq)
+		{
+			BestDistSq = DistSq;
+			Nearest = Npc;
+		}
+	}
+	return Nearest;
 }
 
 void AT4CCharacter::Interact()
@@ -189,18 +212,84 @@ void AT4CCharacter::ServerInteract_Implementation()
 		}
 	}
 
-	if (!Nearest)
+	if (Nearest)
+	{
+		// Prioridade: coletar loot próximo.
+		if (AT4CPlayerState* PS = GetPlayerState<AT4CPlayerState>())
+		{
+			if (UT4CInventoryComponent* Inv = PS->GetInventory())
+			{
+				Inv->AddItem(Nearest->GetItem());
+				Nearest->Destroy();
+			}
+		}
+		return;
+	}
+
+	// Sem loot: interage com o NPC mais próximo (mercador vende / treinador treina).
+	AT4CNpc* Npc = FindNearestNpc(GetWorld(), MyLoc);
+	AT4CPlayerState* PS = GetPlayerState<AT4CPlayerState>();
+	if (!Npc || !PS)
+	{
+		return;
+	}
+	if (Npc->GetNpcType() == ET4CNpcType::Merchant)
+	{
+		if (UT4CInventoryComponent* Inv = PS->GetInventory())
+		{
+			const int32 Earned = Inv->SellAllUnequipped();
+			if (Earned > 0)
+			{
+				PS->GrantGold(Earned);
+				UE_LOG(LogTemp, Display, TEXT("[T4C] %s vendeu itens por %d ouro (total %d)"),
+					*PS->GetPlayerName(), Earned, PS->GetGold());
+			}
+		}
+	}
+	else // Trainer
+	{
+		PS->TrainPrimaryAttribute();
+	}
+}
+
+void AT4CCharacter::Buy()
+{
+	ServerBuy();
+}
+
+void AT4CCharacter::ServerBuy_Implementation()
+{
+	AT4CPlayerState* PS = GetPlayerState<AT4CPlayerState>();
+	if (!PS)
+	{
+		return;
+	}
+	// Precisa estar perto de um mercador.
+	AT4CNpc* Npc = FindNearestNpc(GetWorld(), GetActorLocation());
+	if (!Npc || Npc->GetNpcType() != ET4CNpcType::Merchant)
 	{
 		return;
 	}
 
-	if (AT4CPlayerState* PS = GetPlayerState<AT4CPlayerState>())
+	// Compra uma Poção Maior (da loot table) se tiver ouro.
+	FT4CItem Potion;
+	for (const FT4CItem& Item : T4CItems::DropTable())
+	{
+		if (Item.Id == FName(TEXT("potion_major"))) { Potion = Item; break; }
+	}
+	if (!Potion.IsValid())
+	{
+		return;
+	}
+	const int32 Price = Potion.BuyValue();
+	if (PS->SpendGold(Price))
 	{
 		if (UT4CInventoryComponent* Inv = PS->GetInventory())
 		{
-			Inv->AddItem(Nearest->GetItem());
-			Nearest->Destroy();
+			Inv->AddItem(Potion);
 		}
+		UE_LOG(LogTemp, Display, TEXT("[T4C] %s comprou %s por %d ouro (sobra %d)"),
+			*PS->GetPlayerName(), *Potion.Name, Price, PS->GetGold());
 	}
 }
 

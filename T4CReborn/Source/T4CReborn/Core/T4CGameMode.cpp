@@ -6,6 +6,7 @@
 #include "AI/T4CMonster.h"
 #include "Items/T4CLootPickup.h"
 #include "Items/T4CItemData.h"
+#include "NPC/T4CNpc.h"
 #include "GAS/T4CAttributeSet.h"
 #include "GAS/T4CAbilityInputID.h"
 #include "GAS/T4CGameplayTags.h"
@@ -28,6 +29,7 @@ AT4CGameMode::AT4CGameMode()
 
 	MonsterClass = AT4CMonster::StaticClass();
 	LootPickupClass = AT4CLootPickup::StaticClass();
+	NpcClass = AT4CNpc::StaticClass();
 
 	// Pontos de spawn afastados dos PlayerStarts (jogadores em y=+-300),
 	// para o jogador se aproximar e engajar 1 de cada vez, sem ser cercado no spawn.
@@ -46,6 +48,26 @@ void AT4CGameMode::BeginPlay()
 	for (const FVector& Point : MonsterSpawnPoints)
 	{
 		SpawnMonster(Point);
+	}
+
+	// NPCs da vila, flanqueando o poço central (praça).
+	if (NpcClass)
+	{
+		auto SpawnNpc = [this](ET4CNpcType Type, const FVector& Loc)
+		{
+			const FTransform TM(FRotator::ZeroRotator, Loc);
+			if (AT4CNpc* Npc = GetWorld()->SpawnActorDeferred<AT4CNpc>(
+				NpcClass, TM, nullptr, nullptr, ESpawnActorCollisionHandlingMethod::AlwaysSpawn))
+			{
+				Npc->SetNpcType(Type);
+				Npc->FinishSpawning(TM);
+			}
+		};
+		const FVector MLoc(300.f, 0.f, 110.f);
+		SpawnNpc(ET4CNpcType::Merchant, MLoc);
+		SpawnNpc(ET4CNpcType::Trainer, FVector(-300.f, 0.f, 110.f));
+		MerchantLocation = MLoc;
+		UE_LOG(LogTemp, Display, TEXT("[T4C] NPCs da vila spawnados (mercador + treinador)"));
 	}
 
 	// Autosave periódico dos personagens (persistência).
@@ -106,12 +128,13 @@ void AT4CGameMode::RunAutoTest()
 			continue;
 		}
 
-		// 2) Personagem novo (inventário vazio): dá arma+armadura, ganha XP e SALVA
-		//    imediatamente — assim o slot existe para o próximo lançamento carregar.
+		// 2) Personagem novo (inventário vazio): equipa, ganha XP/ouro, exercita os
+		//    NPCs (vende/compra/treina pelo caminho real) e SALVA.
 		if (UT4CInventoryComponent* Inv = PS->GetInventory())
 		{
 			if (Inv->GetItems().Num() == 0)
 			{
+				AT4CCharacter* Char = Cast<AT4CCharacter>(PC->GetPawn());
 				for (const FT4CItem& Item : T4CItems::DropTable())
 				{
 					if (Item.Type == ET4CItemType::Weapon && Item.WeaponDamage >= 10.f) { Inv->AddItem(Item); break; }
@@ -120,8 +143,28 @@ void AT4CGameMode::RunAutoTest()
 				{
 					if (Item.Type == ET4CItemType::Armor && Item.Armor >= 7.f) { Inv->AddItem(Item); break; }
 				}
-				PS->GrantExperience(250); // sobe de nível de forma determinística
+				for (const FT4CItem& Item : T4CItems::DropTable())
+				{
+					if (Item.Id == FName(TEXT("potion_minor"))) { Inv->AddItem(Item); Inv->AddItem(Item); break; }
+				}
+
+				PS->GrantGold(100);        // simula ouro de abates anteriores
+				PS->GrantExperience(250);  // sobe de nível (gera pontos de perícia)
+
+				if (Char)
+				{
+					// Mercador (300,0): vende as poções não-equipadas e compra uma.
+					Char->SetActorLocation(MerchantLocation + FVector(150.f, 0.f, 30.f), false, nullptr, ETeleportType::TeleportPhysics);
+					Char->Interact();
+					Char->Buy();
+					// Treinador (-300,0): treina (+1 atributo primário).
+					Char->SetActorLocation(FVector(-150.f, 0.f, 140.f), false, nullptr, ETeleportType::TeleportPhysics);
+					Char->Interact();
+				}
+
 				PS->SaveCharacter();
+				UE_LOG(LogTemp, Display, TEXT("[T4C][AutoTest] economia: ouro %d, pericia %d, itens %d, STR %d"),
+					PS->GetGold(), PS->GetUnspentSkillPoints(), Inv->GetItems().Num(), PS->GetPrimaryStats().Strength);
 			}
 		}
 
