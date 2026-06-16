@@ -32,6 +32,7 @@ void UGA_MeleeAttack::ActivateAbility(const FGameplayAbilitySpecHandle Handle, c
 			const float Damage = WeaponBase * Mul * Data.Power;
 
 			Char->DoMeleeSweep(220.f, Damage);
+			Char->PlayAttackAnim();
 			UE_LOG(LogTemp, Verbose, TEXT("[T4C] GA Melee '%s' (dano %.0f, escala %d)"), *Data.Name, Damage, Scale);
 		}
 	}

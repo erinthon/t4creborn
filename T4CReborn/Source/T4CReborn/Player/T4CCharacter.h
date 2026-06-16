@@ -10,6 +10,7 @@
 class USpringArmComponent;
 class UCameraComponent;
 class UT4CAttributeSet;
+class UAnimSequenceBase;
 
 /**
  * Pawn jogável de Althea. Câmera em terceira pessoa (action-RPG).
@@ -109,6 +110,14 @@ protected:
 	UFUNCTION(Server, Reliable)
 	void ServerBuy();
 
+	/** Toca a animação de ataque em todos os clientes. */
+	UFUNCTION(NetMulticast, Unreliable)
+	void MulticastPlayAttack(int32 Index);
+
+	/** Animações de ataque (sequences) embrulhadas em montage dinâmica ao usar. */
+	UPROPERTY(EditDefaultsOnly, Category = "Combat")
+	TArray<TObjectPtr<UAnimSequenceBase>> AttackAnims;
+
 public:
 	/** Tecla F: coleta loot próximo ou interage com o NPC mais próximo. */
 	void Interact();
@@ -134,6 +143,9 @@ public:
 
 	/** Servidor: golpe melee — sweep de esfera curto à frente, aplica dano via ASC. */
 	void DoMeleeSweep(float Range, float Damage);
+
+	/** Servidor: toca uma animação de ataque (replicada a todos via multicast). */
+	void PlayAttackAnim();
 
 protected:
 	/** Servidor: dispara um projétil para frente, com dano, cor e tamanho. */

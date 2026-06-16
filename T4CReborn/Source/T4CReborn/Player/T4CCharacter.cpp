@@ -11,6 +11,7 @@
 #include "Components/SkeletalMeshComponent.h"
 #include "Engine/SkeletalMesh.h"
 #include "Animation/AnimInstance.h"
+#include "Animation/AnimSequence.h"
 #include "Items/T4CInventoryComponent.h"
 #include "Items/T4CLootPickup.h"
 #include "Items/T4CItemData.h"
@@ -49,6 +50,17 @@ AT4CCharacter::AT4CCharacter()
 	{
 		GetMesh()->SetAnimInstanceClass(AnimBP.Class);
 	}
+
+	// Animações de ataque (do pacote do Mannequin) p/ tocar ao usar habilidade.
+	static ConstructorHelpers::FObjectFinder<UAnimSequence> Atk1(
+		TEXT("/Game/Characters/Mannequins/Anims/Unarmed/Attack/MM_Attack_01.MM_Attack_01"));
+	static ConstructorHelpers::FObjectFinder<UAnimSequence> Atk2(
+		TEXT("/Game/Characters/Mannequins/Anims/Unarmed/Attack/MM_Attack_02.MM_Attack_02"));
+	static ConstructorHelpers::FObjectFinder<UAnimSequence> Atk3(
+		TEXT("/Game/Characters/Mannequins/Anims/Unarmed/Attack/MM_Attack_03.MM_Attack_03"));
+	if (Atk1.Succeeded()) AttackAnims.Add(Atk1.Object);
+	if (Atk2.Succeeded()) AttackAnims.Add(Atk2.Object);
+	if (Atk3.Succeeded()) AttackAnims.Add(Atk3.Object);
 
 	CameraBoom = CreateDefaultSubobject<USpringArmComponent>(TEXT("CameraBoom"));
 	CameraBoom->SetupAttachment(RootComponent);
@@ -468,6 +480,28 @@ void AT4CCharacter::DoMeleeSweep(float Range, float Damage)
 			Spec.Data->SetSetByCallerMagnitude(T4CTags::Data_Damage, Damage);
 			SourceASC->ApplyGameplayEffectSpecToTarget(*Spec.Data, TargetASC);
 		}
+	}
+}
+
+void AT4CCharacter::PlayAttackAnim()
+{
+	if (!HasAuthority() || AttackAnims.Num() == 0)
+	{
+		return;
+	}
+	MulticastPlayAttack(FMath::RandRange(0, AttackAnims.Num() - 1));
+}
+
+void AT4CCharacter::MulticastPlayAttack_Implementation(int32 Index)
+{
+	if (!AttackAnims.IsValidIndex(Index) || !AttackAnims[Index] || !GetMesh())
+	{
+		return;
+	}
+	if (UAnimInstance* Anim = GetMesh()->GetAnimInstance())
+	{
+		// Embrulha a sequence numa montage dinâmica no DefaultSlot (sobrepõe a locomoção).
+		Anim->PlaySlotAnimationAsDynamicMontage(AttackAnims[Index], TEXT("DefaultSlot"), 0.1f, 0.15f, 1.3f);
 	}
 }
 
