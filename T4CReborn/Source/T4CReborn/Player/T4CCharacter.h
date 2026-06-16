@@ -153,4 +153,5 @@ protected:
 
 private:
 	bool bDeadHandled = false;
+	int32 AttackComboIndex = 0; // alterna as animações de ataque (combo)
 };

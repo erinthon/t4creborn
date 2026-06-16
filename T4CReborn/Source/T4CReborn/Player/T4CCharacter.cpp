@@ -51,16 +51,13 @@ AT4CCharacter::AT4CCharacter()
 		GetMesh()->SetAnimInstanceClass(AnimBP.Class);
 	}
 
-	// Animações de ataque (do pacote do Mannequin) p/ tocar ao usar habilidade.
+	// Animações de ataque: só os dois socos (direito/esquerdo), alternados em combo.
 	static ConstructorHelpers::FObjectFinder<UAnimSequence> Atk1(
 		TEXT("/Game/Characters/Mannequins/Anims/Unarmed/Attack/MM_Attack_01.MM_Attack_01"));
 	static ConstructorHelpers::FObjectFinder<UAnimSequence> Atk2(
 		TEXT("/Game/Characters/Mannequins/Anims/Unarmed/Attack/MM_Attack_02.MM_Attack_02"));
-	static ConstructorHelpers::FObjectFinder<UAnimSequence> Atk3(
-		TEXT("/Game/Characters/Mannequins/Anims/Unarmed/Attack/MM_Attack_03.MM_Attack_03"));
 	if (Atk1.Succeeded()) AttackAnims.Add(Atk1.Object);
 	if (Atk2.Succeeded()) AttackAnims.Add(Atk2.Object);
-	if (Atk3.Succeeded()) AttackAnims.Add(Atk3.Object);
 
 	CameraBoom = CreateDefaultSubobject<USpringArmComponent>(TEXT("CameraBoom"));
 	CameraBoom->SetupAttachment(RootComponent);
@@ -489,7 +486,10 @@ void AT4CCharacter::PlayAttackAnim()
 	{
 		return;
 	}
-	MulticastPlayAttack(FMath::RandRange(0, AttackAnims.Num() - 1));
+	// Alterna em sequência (soco direito → esquerdo → ...) para um combo limpo.
+	const int32 Index = AttackComboIndex % AttackAnims.Num();
+	AttackComboIndex = (AttackComboIndex + 1) % AttackAnims.Num();
+	MulticastPlayAttack(Index);
 }
 
 void AT4CCharacter::MulticastPlayAttack_Implementation(int32 Index)
