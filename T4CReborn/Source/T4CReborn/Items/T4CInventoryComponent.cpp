@@ -113,6 +113,19 @@ bool UT4CInventoryComponent::UseFirstPotion()
 	return false;
 }
 
+void UT4CInventoryComponent::RestoreFromSave(const TArray<FT4CItem>& InItems, int32 WeaponIdx, int32 ArmorIdx)
+{
+	if (GetOwnerRole() != ROLE_Authority)
+	{
+		return;
+	}
+	Items = InItems;
+	EquippedWeaponIndex = Items.IsValidIndex(WeaponIdx) ? WeaponIdx : -1;
+	EquippedArmorIndex = Items.IsValidIndex(ArmorIdx) ? ArmorIdx : -1;
+	RefreshEquipmentBonuses();
+	OnInventoryChanged.Broadcast();
+}
+
 void UT4CInventoryComponent::RefreshEquipmentBonuses()
 {
 	if (GetOwnerRole() != ROLE_Authority)

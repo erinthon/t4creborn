@@ -8,7 +8,9 @@
 #include "GAS/Abilities/GA_Parry.h"
 #include "Attributes/T4CAbilityData.h"
 #include "Items/T4CInventoryComponent.h"
+#include "Core/T4CSaveGame.h"
 #include "Abilities/GameplayAbility.h"
+#include "Kismet/GameplayStatics.h"
 #include "Net/UnrealNetwork.h"
 
 namespace
@@ -217,6 +219,96 @@ void AT4CPlayerState::ClearAbilities()
 		AbilitySystem->ClearAbility(Handle);
 	}
 	GrantedAbilities.Reset();
+}
+
+FString AT4CPlayerState::GetSaveSlotName() const
+{
+	// Sanitiza o nome do jogador para um nome de arquivo seguro.
+	FString Clean;
+	for (const TCHAR C : GetPlayerName())
+	{
+		if (FChar::IsAlnum(C))
+		{
+			Clean.AppendChar(C);
+		}
+	}
+	if (Clean.IsEmpty())
+	{
+		Clean = TEXT("Player");
+	}
+	return FString::Printf(TEXT("T4C_%s"), *Clean);
+}
+
+void AT4CPlayerState::SaveCharacter()
+{
+	// Só persiste personagens que já escolheram classe (evita salvar vazio).
+	if (!HasAuthority() || !bHasChosenClass)
+	{
+		return;
+	}
+
+	UT4CSaveGame* Save = Cast<UT4CSaveGame>(UGameplayStatics::CreateSaveGameObject(UT4CSaveGame::StaticClass()));
+	if (!Save)
+	{
+		return;
+	}
+	Save->bHasChosenClass = bHasChosenClass;
+	Save->ChosenClass = ChosenClass;
+	Save->PrimaryStats = PrimaryStats;
+	Save->CharacterLevel = CharacterLevel;
+	Save->Experience = Experience;
+	Save->UnspentStatPoints = UnspentStatPoints;
+	Save->UnspentSkillPoints = UnspentSkillPoints;
+	if (Inventory)
+	{
+		Save->Items = Inventory->GetItems();
+		Save->EquippedWeaponIndex = Inventory->GetEquippedWeaponIndex();
+		Save->EquippedArmorIndex = Inventory->GetEquippedArmorIndex();
+	}
+
+	UGameplayStatics::SaveGameToSlot(Save, GetSaveSlotName(), 0);
+	UE_LOG(LogTemp, Display, TEXT("[T4C] Salvou %s (classe %s, nivel %d, %d itens)"),
+		*GetPlayerName(), *GetClassName(), CharacterLevel, Save->Items.Num());
+}
+
+void AT4CPlayerState::LoadCharacterOnce()
+{
+	if (!HasAuthority() || bSaveLoaded)
+	{
+		return;
+	}
+	bSaveLoaded = true;
+
+	const FString Slot = GetSaveSlotName();
+	if (!UGameplayStatics::DoesSaveGameExist(Slot, 0))
+	{
+		return; // personagem novo: segue para o menu de classe
+	}
+
+	UT4CSaveGame* Save = Cast<UT4CSaveGame>(UGameplayStatics::LoadGameFromSlot(Slot, 0));
+	if (!Save || !Save->bHasChosenClass)
+	{
+		return;
+	}
+
+	ChosenClass = Save->ChosenClass;
+	bHasChosenClass = true;
+	PrimaryStats = Save->PrimaryStats;
+	CharacterLevel = Save->CharacterLevel;
+	Experience = Save->Experience;
+	UnspentStatPoints = Save->UnspentStatPoints;
+	UnspentSkillPoints = Save->UnspentSkillPoints;
+
+	PushStatsToASC(/*bRefill=*/true);
+	GrantClassAbilities();
+	if (Inventory)
+	{
+		Inventory->RestoreFromSave(Save->Items, Save->EquippedWeaponIndex, Save->EquippedArmorIndex);
+	}
+	OnStatsChanged.Broadcast();
+
+	UE_LOG(LogTemp, Display, TEXT("[T4C] Carregou %s (classe %s, nivel %d, %d itens)"),
+		*GetPlayerName(), *GetClassName(), CharacterLevel, Save->Items.Num());
 }
 
 void AT4CPlayerState::OnRep_Progression()

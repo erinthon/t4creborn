@@ -32,6 +32,9 @@ public:
 	 *  (chamar após coletar/respawnar). */
 	void RefreshEquipmentBonuses();
 
+	/** Servidor: restaura itens e equipamento a partir de um save. */
+	void RestoreFromSave(const TArray<FT4CItem>& InItems, int32 WeaponIdx, int32 ArmorIdx);
+
 	// --- Consultas (HUD) ---
 	UFUNCTION(BlueprintPure, Category = "T4C|Inventory")
 	const TArray<FT4CItem>& GetItems() const { return Items; }
