@@ -160,6 +160,13 @@ void AT4CGameMode::RunAutoTest()
 					// Treinador (-300,0): treina (+1 atributo primário).
 					Char->SetActorLocation(FVector(-150.f, 0.f, 140.f), false, nullptr, ETeleportType::TeleportPhysics);
 					Char->Interact();
+					// Consumíveis: dá uma poção de mana e usa vida (comprada) + mana.
+					for (const FT4CItem& Item : T4CItems::DropTable())
+					{
+						if (Item.Id == FName(TEXT("mana_minor"))) { Inv->AddItem(Item); break; }
+					}
+					Char->UsePotion();      // consome poção de vida
+					Char->UseManaPotion();  // consome poção de mana
 					// Posiciona perto de um monstro (~1900,0) p/ o melee dos ticks acertar.
 					Char->SetActorLocation(FVector(1720.f, 0.f, 140.f), false, nullptr, ETeleportType::TeleportPhysics);
 				}

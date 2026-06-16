@@ -6,6 +6,7 @@
 #include "GAS/T4CGameplayTags.h"
 #include "GAS/T4CAbilityInputID.h"
 #include "GAS/Effects/T4CGameplayEffects.h"
+#include "Core/T4CVisuals.h"
 #include "AbilitySystemComponent.h"
 #include "AbilitySystemBlueprintLibrary.h"
 #include "Items/T4CInventoryComponent.h"
@@ -63,10 +64,7 @@ void AT4CCharacter::BeginPlay()
 	Super::BeginPlay();
 
 	// Cor do corpo: azul-aço (distingue jogadores dos monstros vermelhos).
-	if (BodyMesh)
-	{
-		BodyMesh->SetVectorParameterValueOnMaterials(TEXT("Color"), FVector(0.2f, 0.45f, 0.95f));
-	}
+	T4CVisuals::ApplyBodyColor(BodyMesh, this, FLinearColor(0.2f, 0.45f, 0.95f));
 }
 
 UAbilitySystemComponent* AT4CCharacter::GetAbilitySystemComponent() const
@@ -169,6 +167,7 @@ void AT4CCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCompon
 	// Loot: F coleta o drop próximo (ou interage com NPC); G usa poção; B compra.
 	PlayerInputComponent->BindAction(TEXT("Interact"), IE_Pressed, this, &AT4CCharacter::Interact);
 	PlayerInputComponent->BindAction(TEXT("UsePotion"), IE_Pressed, this, &AT4CCharacter::UsePotion);
+	PlayerInputComponent->BindAction(TEXT("UseManaPotion"), IE_Pressed, this, &AT4CCharacter::UseManaPotion);
 	PlayerInputComponent->BindAction(TEXT("Buy"), IE_Pressed, this, &AT4CCharacter::Buy);
 }
 
@@ -312,7 +311,23 @@ void AT4CCharacter::ServerUsePotion_Implementation()
 	{
 		if (UT4CInventoryComponent* Inv = PS->GetInventory())
 		{
-			Inv->UseFirstPotion();
+			Inv->UseFirstHealthPotion();
+		}
+	}
+}
+
+void AT4CCharacter::UseManaPotion()
+{
+	ServerUseManaPotion();
+}
+
+void AT4CCharacter::ServerUseManaPotion_Implementation()
+{
+	if (AT4CPlayerState* PS = GetPlayerState<AT4CPlayerState>())
+	{
+		if (UT4CInventoryComponent* Inv = PS->GetInventory())
+		{
+			Inv->UseFirstManaPotion();
 		}
 	}
 }

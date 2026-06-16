@@ -105,13 +105,18 @@ protected:
 	void ServerUsePotion();
 
 	UFUNCTION(Server, Reliable)
+	void ServerUseManaPotion();
+
+	UFUNCTION(Server, Reliable)
 	void ServerBuy();
 
 public:
 	/** Tecla F: coleta loot próximo ou interage com o NPC mais próximo. */
 	void Interact();
-	/** Tecla G: usa a primeira poção do inventário. */
+	/** Tecla G: usa a primeira poção de vida. */
 	void UsePotion();
+	/** Tecla H: usa a primeira poção de mana. */
+	void UseManaPotion();
 	/** Tecla B: compra uma poção do mercador próximo. */
 	void Buy();
 
