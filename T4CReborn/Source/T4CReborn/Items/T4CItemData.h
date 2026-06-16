@@ -7,9 +7,10 @@
 UENUM(BlueprintType)
 enum class ET4CItemType : uint8
 {
-	Weapon  UMETA(DisplayName = "Arma"),    // soma WeaponDamage ao dano de projétil
-	Armor   UMETA(DisplayName = "Armadura"),// soma Armor (redução plana de dano)
-	Potion  UMETA(DisplayName = "Poção")    // consumível: cura HealAmount
+	Weapon     UMETA(DisplayName = "Arma"),     // soma WeaponDamage ao dano de projétil
+	Armor      UMETA(DisplayName = "Armadura"), // soma Armor (redução plana de dano)
+	Potion     UMETA(DisplayName = "Poção"),    // poção de vida: cura HealAmount
+	ManaPotion UMETA(DisplayName = "Poção de Mana") // restaura HealAmount de mana
 };
 
 /**
@@ -77,14 +78,16 @@ namespace T4CItems
 	inline const TArray<FT4CItem>& DropTable()
 	{
 		static const TArray<FT4CItem> Table = {
-			FT4CItem(TEXT("potion_minor"),  TEXT("Poção Menor"),       ET4CItemType::Potion, 0.f,  0.f, 40.f,  0),
-			FT4CItem(TEXT("dagger_rusty"),  TEXT("Adaga Enferrujada"), ET4CItemType::Weapon, 4.f,  0.f,  0.f,  0),
-			FT4CItem(TEXT("armor_leather"), TEXT("Armadura de Couro"), ET4CItemType::Armor,  0.f,  3.f,  0.f,  0),
-			FT4CItem(TEXT("sword_iron"),    TEXT("Espada de Ferro"),   ET4CItemType::Weapon, 10.f, 0.f,  0.f,  1),
-			FT4CItem(TEXT("armor_chain"),   TEXT("Cota de Malha"),     ET4CItemType::Armor,  0.f,  7.f,  0.f,  1),
-			FT4CItem(TEXT("potion_major"),  TEXT("Poção Maior"),       ET4CItemType::Potion, 0.f,  0.f, 90.f,  1),
-			FT4CItem(TEXT("sword_great"),   TEXT("Montante de Aço"),   ET4CItemType::Weapon, 18.f, 0.f,  0.f,  2),
-			FT4CItem(TEXT("armor_plate"),   TEXT("Armadura de Placas"),ET4CItemType::Armor,  0.f, 12.f,  0.f,  2),
+			FT4CItem(TEXT("potion_minor"),  TEXT("Poção de Vida Menor"), ET4CItemType::Potion,     0.f,  0.f, 40.f,  0),
+			FT4CItem(TEXT("mana_minor"),    TEXT("Poção de Mana Menor"), ET4CItemType::ManaPotion, 0.f,  0.f, 40.f,  0),
+			FT4CItem(TEXT("dagger_rusty"),  TEXT("Adaga Enferrujada"),   ET4CItemType::Weapon, 4.f,  0.f,  0.f,  0),
+			FT4CItem(TEXT("armor_leather"), TEXT("Armadura de Couro"),   ET4CItemType::Armor,  0.f,  3.f,  0.f,  0),
+			FT4CItem(TEXT("sword_iron"),    TEXT("Espada de Ferro"),     ET4CItemType::Weapon, 10.f, 0.f,  0.f,  1),
+			FT4CItem(TEXT("armor_chain"),   TEXT("Cota de Malha"),       ET4CItemType::Armor,  0.f,  7.f,  0.f,  1),
+			FT4CItem(TEXT("potion_major"),  TEXT("Poção de Vida Maior"), ET4CItemType::Potion,     0.f,  0.f, 90.f,  1),
+			FT4CItem(TEXT("mana_major"),    TEXT("Poção de Mana Maior"), ET4CItemType::ManaPotion, 0.f,  0.f, 90.f,  1),
+			FT4CItem(TEXT("sword_great"),   TEXT("Montante de Aço"),     ET4CItemType::Weapon, 18.f, 0.f,  0.f,  2),
+			FT4CItem(TEXT("armor_plate"),   TEXT("Armadura de Placas"),  ET4CItemType::Armor,  0.f, 12.f,  0.f,  2),
 		};
 		return Table;
 	}

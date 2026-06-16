@@ -1,4 +1,5 @@
 #include "NPC/T4CNpc.h"
+#include "Core/T4CVisuals.h"
 #include "Components/StaticMeshComponent.h"
 #include "Components/PointLightComponent.h"
 #include "UObject/ConstructorHelpers.h"
@@ -56,8 +57,5 @@ void AT4CNpc::ApplyVisual()
 	{
 		Light->SetLightColor(Color);
 	}
-	if (BodyMesh)
-	{
-		BodyMesh->SetVectorParameterValueOnMaterials(TEXT("Color"), FVector(Color.R, Color.G, Color.B));
-	}
+	T4CVisuals::ApplyBodyColor(BodyMesh, this, Color);
 }

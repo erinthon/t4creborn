@@ -67,7 +67,10 @@ void UT4CInventoryComponent::AutoEquipIfBetter(int32 NewIndex)
 	}
 }
 
-bool UT4CInventoryComponent::UseFirstPotion()
+bool UT4CInventoryComponent::UseFirstHealthPotion() { return UsePotionInternal(ET4CItemType::Potion, /*bMana=*/false); }
+bool UT4CInventoryComponent::UseFirstManaPotion()   { return UsePotionInternal(ET4CItemType::ManaPotion, /*bMana=*/true); }
+
+bool UT4CInventoryComponent::UsePotionInternal(ET4CItemType PotionType, bool bMana)
 {
 	if (GetOwnerRole() != ROLE_Authority)
 	{
@@ -76,7 +79,7 @@ bool UT4CInventoryComponent::UseFirstPotion()
 
 	for (int32 i = 0; i < Items.Num(); ++i)
 	{
-		if (Items[i].Type != ET4CItemType::Potion)
+		if (Items[i].Type != PotionType)
 		{
 			continue;
 		}
@@ -88,16 +91,19 @@ bool UT4CInventoryComponent::UseFirstPotion()
 			return false; // sem ASC vivo: não desperdiça a poção
 		}
 
-		const float Heal = Items[i].HealAmount;
-		// Cura via GE_Heal (SetByCaller Data.Healing).
+		const float Amount = Items[i].HealAmount;
+		// Vida via GE_Heal; Mana via GE_Cost (que soma à Mana pelo SetByCaller, valor positivo).
+		const TSubclassOf<UGameplayEffect> EffectClass = bMana ? UGE_Cost::StaticClass() : UGE_Heal::StaticClass();
+		const FGameplayTag DataTag = bMana ? T4CTags::Data_ManaCost : T4CTags::Data_Healing;
 		FGameplayEffectContextHandle Ctx = ASC->MakeEffectContext();
-		FGameplayEffectSpecHandle Spec = ASC->MakeOutgoingSpec(UGE_Heal::StaticClass(), 1.f, Ctx);
+		FGameplayEffectSpecHandle Spec = ASC->MakeOutgoingSpec(EffectClass, 1.f, Ctx);
 		if (Spec.IsValid())
 		{
-			Spec.Data->SetSetByCallerMagnitude(T4CTags::Data_Healing, Heal);
+			Spec.Data->SetSetByCallerMagnitude(DataTag, Amount);
 			ASC->ApplyGameplayEffectSpecToSelf(*Spec.Data);
 		}
-		UE_LOG(LogTemp, Display, TEXT("[T4C] Usou %s (+%.0f HP)"), *Items[i].Name, Heal);
+		UE_LOG(LogTemp, Display, TEXT("[T4C] Usou %s (+%.0f %s)"),
+			*Items[i].Name, Amount, bMana ? TEXT("Mana") : TEXT("HP"));
 
 		Items.RemoveAt(i);
 		// Remover desloca índices: corrige os equipados que vinham depois.
@@ -111,6 +117,13 @@ bool UT4CInventoryComponent::UseFirstPotion()
 		return true;
 	}
 	return false;
+}
+
+int32 UT4CInventoryComponent::CountItemsOfType(ET4CItemType Type) const
+{
+	int32 N = 0;
+	for (const FT4CItem& Item : Items) { if (Item.Type == Type) ++N; }
+	return N;
 }
 
 void UT4CInventoryComponent::RestoreFromSave(const TArray<FT4CItem>& InItems, int32 WeaponIdx, int32 ArmorIdx)

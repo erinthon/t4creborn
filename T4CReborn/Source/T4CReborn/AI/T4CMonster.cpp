@@ -7,6 +7,7 @@
 #include "GAS/T4CAttributeSet.h"
 #include "GAS/T4CGameplayTags.h"
 #include "GAS/Effects/T4CGameplayEffects.h"
+#include "Core/T4CVisuals.h"
 #include "AbilitySystemComponent.h"
 #include "AbilitySystemBlueprintLibrary.h"
 #include "Components/StaticMeshComponent.h"
@@ -83,6 +84,9 @@ void AT4CMonster::BeginPlay()
 
 	SpawnLocation = GetActorLocation();
 	InitAbilitySystem();
+
+	// Cor do corpo: vermelho (inimigo), contrastando com o azul dos jogadores.
+	T4CVisuals::ApplyBodyColor(BodyMesh, this, FLinearColor(0.9f, 0.15f, 0.1f));
 }
 
 void AT4CMonster::PossessedBy(AController* NewController)

@@ -4,6 +4,7 @@
 #include "GAS/T4CAttributeSet.h"
 #include "GAS/T4CAbilityInputID.h"
 #include "GAS/Abilities/GA_ProjectileAttack.h"
+#include "GAS/Abilities/GA_MeleeAttack.h"
 #include "GAS/Abilities/GA_Heal.h"
 #include "GAS/Abilities/GA_Parry.h"
 #include "Attributes/T4CAbilityData.h"
@@ -24,6 +25,7 @@ namespace
 	{
 		switch (Kind)
 		{
+		case ET4CAbilityKind::Melee: return UGA_MeleeAttack::StaticClass();
 		case ET4CAbilityKind::Heal:  return UGA_Heal::StaticClass();
 		case ET4CAbilityKind::Parry: return UGA_Parry::StaticClass();
 		case ET4CAbilityKind::Projectile:
@@ -82,6 +84,7 @@ void AT4CPlayerState::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutL
 	DOREPLIFETIME(AT4CPlayerState, ChosenClass);
 	DOREPLIFETIME(AT4CPlayerState, bHasChosenClass);
 	DOREPLIFETIME(AT4CPlayerState, Gold);
+	DOREPLIFETIME(AT4CPlayerState, bLoadResolved);
 }
 
 void AT4CPlayerState::GrantGold(int32 Amount)
@@ -163,9 +166,9 @@ void AT4CPlayerState::ServerResetClass_Implementation()
 
 int32 AT4CPlayerState::GetXPForNextLevel() const
 {
-	// Curva simples (placeholder): cresce linearmente com o nível.
-	// Substituir por DataTable de curva na Fase 2.
-	return CharacterLevel * 100;
+	// Curva crescente (triangular): cada nível custa progressivamente mais.
+	// N1=100, N2=300, N3=600, N4=1000... Mantém inteiro e previsível.
+	return 50 * CharacterLevel * (CharacterLevel + 1);
 }
 
 void AT4CPlayerState::GrantExperience(int32 Amount)
@@ -319,9 +322,15 @@ void AT4CPlayerState::LoadCharacterOnce()
 
 	if (UT4CPersistenceSubsystem* Persistence = GetPersistence(this))
 	{
-		// Assíncrono: o personagem nasce com padrões e é corrigido no callback.
+		// Assíncrono: o HUD mostra "carregando" até o callback resolver.
 		Persistence->LoadCharacter(GetSaveSlotName(),
 			FT4COnCharacterLoaded::CreateUObject(this, &AT4CPlayerState::OnCharacterLoaded));
+	}
+	else
+	{
+		// Sem subsystem de persistência: resolve imediatamente (vai ao menu de classe).
+		bLoadResolved = true;
+		OnStatsChanged.Broadcast();
 	}
 }
 
@@ -335,6 +344,8 @@ void AT4CPlayerState::OnCharacterLoaded(bool bFound, const FString& Json)
 	{
 		UE_LOG(LogTemp, Display, TEXT("[T4C] Sem save para %s (personagem novo)"), *GetPlayerName());
 	}
+	bLoadResolved = true; // libera o HUD (menu de classe ou jogo)
+	OnStatsChanged.Broadcast();
 }
 
 FString AT4CPlayerState::SerializeToJson() const

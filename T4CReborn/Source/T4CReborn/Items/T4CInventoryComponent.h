@@ -25,8 +25,14 @@ public:
 	/** Servidor: adiciona um item ao inventário e auto-equipa se for melhor. */
 	void AddItem(const FT4CItem& Item);
 
-	/** Servidor: usa a primeira poção do inventário (cura o pawn). Retorna true se usou. */
-	bool UseFirstPotion();
+	/** Servidor: usa a primeira poção de vida (cura HP). Retorna true se usou. */
+	bool UseFirstHealthPotion();
+
+	/** Servidor: usa a primeira poção de mana (restaura Mana). Retorna true se usou. */
+	bool UseFirstManaPotion();
+
+	/** Conta quantos itens de um tipo há na mochila (HUD). */
+	int32 CountItemsOfType(ET4CItemType Type) const;
 
 	/** Servidor: reaplica os bônus de equipamento aos atributos do ASC
 	 *  (chamar após coletar/respawnar). */
@@ -77,4 +83,7 @@ protected:
 private:
 	/** Servidor: equipa o item do índice se melhorar o slot correspondente. */
 	void AutoEquipIfBetter(int32 NewIndex);
+
+	/** Servidor: consome a primeira poção do tipo dado (vida ou mana). */
+	bool UsePotionInternal(ET4CItemType PotionType, bool bMana);
 };

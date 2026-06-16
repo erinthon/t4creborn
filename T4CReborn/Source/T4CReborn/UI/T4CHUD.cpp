@@ -73,6 +73,13 @@ void AT4CHUD::DrawHUD()
 	const FLinearColor Gold(1.f, 0.85f, 0.2f, 1.f);
 	const FLinearColor Dim(0.75f, 0.75f, 0.8f, 1.f);
 
+	// --- Aguardando o load de persistência (evita o menu de classe 'piscar') ---
+	if (!PS->IsLoadResolved())
+	{
+		DrawText(TEXT("Carregando personagem..."), Gold, W * 0.5f - 130.f, H * 0.45f, nullptr, 1.4f);
+		return;
+	}
+
 	// --- Menu de seleção de classe (antes de escolher) ---
 	if (!PS->HasChosenClass())
 	{
@@ -137,6 +144,10 @@ void AT4CHUD::DrawHUD()
 		IY += 22.f;
 		DrawText(FString::Printf(TEXT("Armadura: %s (+%.0f)"),
 			*Inv->GetEquippedArmorName(), Inv->GetEquippedArmor()),
+			White, PX, IY, nullptr, 1.0f);
+		IY += 26.f;
+		DrawText(FString::Printf(TEXT("Pocoes:  Vida x%d [G]   Mana x%d [H]"),
+			Inv->CountItemsOfType(ET4CItemType::Potion), Inv->CountItemsOfType(ET4CItemType::ManaPotion)),
 			White, PX, IY, nullptr, 1.0f);
 		IY += 30.f;
 
@@ -262,8 +273,8 @@ void AT4CHUD::DrawHUD()
 	}
 
 	// --- Dica de controles (canto inferior direito) ---
-	DrawText(TEXT("WASD mover | Mouse olhar | Q/E habilidades | F pegar | G pocao | R trocar classe"),
-		FLinearColor(0.8f, 0.8f, 0.8f, 1.f), W - 720.f, H - 24.f, nullptr, 1.0f);
+	DrawText(TEXT("WASD | Mouse | Q/E habilidades | F pegar/NPC | G vida | H mana | B comprar | R classe"),
+		FLinearColor(0.8f, 0.8f, 0.8f, 1.f), W - 820.f, H - 24.f, nullptr, 1.0f);
 }
 
 void AT4CHUD::DrawBar(float X, float Y, float W, float H, float Pct,

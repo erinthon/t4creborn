@@ -105,13 +105,18 @@ protected:
 	void ServerUsePotion();
 
 	UFUNCTION(Server, Reliable)
+	void ServerUseManaPotion();
+
+	UFUNCTION(Server, Reliable)
 	void ServerBuy();
 
 public:
 	/** Tecla F: coleta loot próximo ou interage com o NPC mais próximo. */
 	void Interact();
-	/** Tecla G: usa a primeira poção do inventário. */
+	/** Tecla G: usa a primeira poção de vida. */
 	void UsePotion();
+	/** Tecla H: usa a primeira poção de mana. */
+	void UseManaPotion();
 	/** Tecla B: compra uma poção do mercador próximo. */
 	void Buy();
 
@@ -127,6 +132,9 @@ public:
 
 	/** Servidor: dispara o projétil de ataque (chamado pela GameplayAbility). */
 	void FireAbilityProjectile(float Damage, FLinearColor Color, float Scale) { SpawnAttackProjectile(Damage, Color, Scale); }
+
+	/** Servidor: golpe melee — sweep de esfera curto à frente, aplica dano via ASC. */
+	void DoMeleeSweep(float Range, float Damage);
 
 protected:
 	/** Servidor: dispara um projétil para frente, com dano, cor e tamanho. */
