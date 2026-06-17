@@ -7,7 +7,6 @@
 #include "Attributes/T4CAttributeData.h"
 #include "T4CMonster.generated.h"
 
-class UStaticMeshComponent;
 class UT4CAbilitySystemComponent;
 class UT4CAttributeSet;
 class USoundBase;
@@ -61,8 +60,7 @@ protected:
 	UPROPERTY(VisibleAnywhere, Category = "T4C|GAS")
 	TObjectPtr<UT4CAttributeSet> AttributeSet;
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "T4C")
-	TObjectPtr<UStaticMeshComponent> BodyMesh;
+	// Corpo visível = malha esqueletal herdada (GetMesh()): SK_Goblin (montado no construtor).
 
 	UPROPERTY(EditDefaultsOnly, Category = "T4C|Monster")
 	FT4CPrimaryStats Stats;

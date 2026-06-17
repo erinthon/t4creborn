@@ -7,12 +7,13 @@
 #include "GAS/T4CAttributeSet.h"
 #include "GAS/T4CGameplayTags.h"
 #include "GAS/Effects/T4CGameplayEffects.h"
-#include "Core/T4CVisuals.h"
 #include "AbilitySystemComponent.h"
 #include "AbilitySystemBlueprintLibrary.h"
 #include "Sound/SoundBase.h"
 #include "Kismet/GameplayStatics.h"
-#include "Components/StaticMeshComponent.h"
+#include "Components/SkeletalMeshComponent.h"
+#include "Engine/SkeletalMesh.h"
+#include "Materials/MaterialInterface.h"
 #include "Components/CapsuleComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "UObject/ConstructorHelpers.h"
@@ -33,17 +34,20 @@ AT4CMonster::AT4CMonster()
 	GetCharacterMovement()->RotationRate = FRotator(0.f, 360.f, 0.f);
 	GetCharacterMovement()->MaxWalkSpeed = 320.f; // mais lento que o jogador
 
-	// Corpo: cubo do engine (distinto dos jogadores, que sao cilindros).
-	BodyMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("BodyMesh"));
-	BodyMesh->SetupAttachment(RootComponent);
-	BodyMesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-	static ConstructorHelpers::FObjectFinder<UStaticMesh> CubeMesh(
-		TEXT("/Engine/BasicShapes/Cube.Cube"));
-	if (CubeMesh.Succeeded())
+	// Corpo: malha esqueletal do Goblin (herdada via GetMesh()). Sem animação ainda
+	// (pose de referência); base na base da cápsula, virada p/ +X.
+	GetMesh()->SetRelativeLocationAndRotation(FVector(0.f, 0.f, -88.f), FRotator(0.f, -90.f, 0.f));
+	static ConstructorHelpers::FObjectFinder<USkeletalMesh> GoblinMesh(
+		TEXT("/Game/Monsters/Goblin/SK_Goblin.SK_Goblin"));
+	if (GoblinMesh.Succeeded())
 	{
-		BodyMesh->SetStaticMesh(CubeMesh.Object);
-		BodyMesh->SetRelativeScale3D(FVector(1.2f, 1.2f, 1.7f));
-		BodyMesh->SetRelativeLocation(FVector(0.f, 0.f, -10.f));
+		GetMesh()->SetSkeletalMesh(GoblinMesh.Object);
+	}
+	static ConstructorHelpers::FObjectFinder<UMaterialInterface> GoblinMat(
+		TEXT("/Game/Monsters/Goblin/M_Goblin.M_Goblin"));
+	if (GoblinMat.Succeeded())
+	{
+		GetMesh()->SetMaterial(0, GoblinMat.Object);
 	}
 
 	// ASC próprio (monstros não têm PlayerState). Replicação mínima: os outros
@@ -97,9 +101,6 @@ void AT4CMonster::BeginPlay()
 
 	SpawnLocation = GetActorLocation();
 	InitAbilitySystem();
-
-	// Cor do corpo: vermelho (inimigo), contrastando com o azul dos jogadores.
-	T4CVisuals::ApplyBodyColor(BodyMesh, this, FLinearColor(0.9f, 0.15f, 0.1f));
 }
 
 void AT4CMonster::PossessedBy(AController* NewController)
