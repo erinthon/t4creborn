@@ -69,37 +69,31 @@ for key in ("Normal", "Metallic", "Roughness", "BaseColor"):
     if textures.get(key):
         unreal.EditorAssetLibrary.save_loaded_asset(textures[key])
 
-# --- 3) Cria o material M_Goblin ---
+# --- 3) Cria o material M_Goblin (só BaseColor) ---
+# NOTA: ligar Normal/Metallic/Roughness aqui causou ERRO de compilação do material
+# (mismatch de sampler/compressão) -> a UE renderizava o cinza-padrão. BaseColor sozinho
+# compila e mostra a textura. Reintroduzir os outros mapas exige acertar sampler/compressão.
 mat_path = DEST + "/M_Goblin"
 if unreal.EditorAssetLibrary.does_asset_exist(mat_path):
     unreal.EditorAssetLibrary.delete_asset(mat_path)
 mat = tools.create_asset("M_Goblin", DEST, unreal.Material, unreal.MaterialFactoryNew())
 
-
-def add_sample(tex, x, y, sampler):
-    s = mel.create_material_expression(mat, unreal.MaterialExpressionTextureSample, x, y)
-    s.set_editor_property("texture", tex)
-    s.set_editor_property("sampler_type", sampler)
-    return s
-
-ST = unreal.MaterialSamplerType
 if textures.get("BaseColor"):
-    s = add_sample(textures["BaseColor"], -400, -200, ST.SAMPLERTYPE_COLOR)
+    s = mel.create_material_expression(mat, unreal.MaterialExpressionTextureSample, -400, 0)
+    s.set_editor_property("texture", textures["BaseColor"])
+    s.set_editor_property("sampler_type", unreal.MaterialSamplerType.SAMPLERTYPE_COLOR)
     mel.connect_material_property(s, "RGB", unreal.MaterialProperty.MP_BASE_COLOR)
-if textures.get("Normal"):
-    s = add_sample(textures["Normal"], -400, 100, ST.SAMPLERTYPE_NORMAL)
-    mel.connect_material_property(s, "RGB", unreal.MaterialProperty.MP_NORMAL)
-if textures.get("Metallic"):
-    s = add_sample(textures["Metallic"], -400, 400, ST.SAMPLERTYPE_LINEAR_GRAYSCALE)
-    mel.connect_material_property(s, "R", unreal.MaterialProperty.MP_METALLIC)
-if textures.get("Roughness"):
-    s = add_sample(textures["Roughness"], -400, 700, ST.SAMPLERTYPE_LINEAR_GRAYSCALE)
-    mel.connect_material_property(s, "R", unreal.MaterialProperty.MP_ROUGHNESS)
 
-# Necessário para aplicar o material a uma malha esqueletal sem aviso.
 mat.set_editor_property("used_with_skeletal_mesh", True)
 mel.recompile_material(mat)
 unreal.EditorAssetLibrary.save_loaded_asset(mat)
 
-skm_exists = unreal.EditorAssetLibrary.does_asset_exist(DEST + "/SK_Goblin")
-unreal.log("=== T4C Goblin: SK_Goblin=%s, M_Goblin criado ===" % ("OK" if skm_exists else "FALHOU"))
+# --- 4) Atribui o material ao(s) slot(s) do SK_Goblin ---
+skm = unreal.load_asset(DEST + "/SK_Goblin")
+mats = skm.get_editor_property("materials")
+for i in range(len(mats)):
+    mats[i].set_editor_property("material_interface", mat)
+skm.set_editor_property("materials", mats)
+unreal.EditorAssetLibrary.save_loaded_asset(skm)
+
+unreal.log("=== T4C Goblin: SK_Goblin OK, M_Goblin (BaseColor) atribuido a %d slot(s) ===" % len(mats))
