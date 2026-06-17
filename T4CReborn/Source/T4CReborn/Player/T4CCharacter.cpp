@@ -13,6 +13,8 @@
 #include "Animation/AnimInstance.h"
 #include "Animation/AnimSequence.h"
 #include "Core/T4CVisuals.h"
+#include "Sound/SoundBase.h"
+#include "Kismet/GameplayStatics.h"
 #include "Items/T4CInventoryComponent.h"
 #include "Items/T4CLootPickup.h"
 #include "Items/T4CItemData.h"
@@ -59,6 +61,16 @@ AT4CCharacter::AT4CCharacter()
 		TEXT("/Game/Characters/Mannequins/Anims/Unarmed/Attack/MM_Attack_02.MM_Attack_02"));
 	if (Atk1.Succeeded()) AttackAnims.Add(Atk1.Object);
 	if (Atk2.Succeeded()) AttackAnims.Add(Atk2.Object);
+
+	// SFX placeholders (gerados por Scripts/gen_sfx.py, importados em /Game/Audio).
+	static ConstructorHelpers::FObjectFinder<USoundBase> SndSwing(TEXT("/Game/Audio/sfx_swing.sfx_swing"));
+	static ConstructorHelpers::FObjectFinder<USoundBase> SndHit(TEXT("/Game/Audio/sfx_hit.sfx_hit"));
+	static ConstructorHelpers::FObjectFinder<USoundBase> SndLevel(TEXT("/Game/Audio/sfx_levelup.sfx_levelup"));
+	static ConstructorHelpers::FObjectFinder<USoundBase> SndDeath(TEXT("/Game/Audio/sfx_death.sfx_death"));
+	if (SndSwing.Succeeded()) SwingSound = SndSwing.Object;
+	if (SndHit.Succeeded())   HitSound = SndHit.Object;
+	if (SndLevel.Succeeded()) LevelUpSound = SndLevel.Object;
+	if (SndDeath.Succeeded()) DeathSound = SndDeath.Object;
 
 	// Arma placeholder: lâmina de primitiva presa ao osso hand_r (trocar por malha real depois).
 	WeaponMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("WeaponMesh"));
@@ -495,6 +507,11 @@ void AT4CCharacter::DoMeleeSweep(float Range, float Damage)
 			SourceASC->ApplyGameplayEffectSpecToTarget(*Spec.Data, TargetASC);
 		}
 	}
+
+	if (Damaged.Num() > 0) // acertou algo → som de impacto
+	{
+		MulticastPlaySound(HitSound);
+	}
 }
 
 void AT4CCharacter::PlayAttackAnim()
@@ -519,6 +536,26 @@ void AT4CCharacter::MulticastPlayAttack_Implementation(int32 Index)
 	{
 		// Embrulha a sequence numa montage dinâmica no DefaultSlot (sobrepõe a locomoção).
 		Anim->PlaySlotAnimationAsDynamicMontage(AttackAnims[Index], TEXT("DefaultSlot"), 0.1f, 0.15f, 1.3f);
+	}
+	if (SwingSound)
+	{
+		UGameplayStatics::PlaySoundAtLocation(this, SwingSound, GetActorLocation());
+	}
+}
+
+void AT4CCharacter::MulticastPlaySound_Implementation(USoundBase* Sound)
+{
+	if (Sound)
+	{
+		UGameplayStatics::PlaySoundAtLocation(this, Sound, GetActorLocation());
+	}
+}
+
+void AT4CCharacter::PlayLevelUpSound()
+{
+	if (HasAuthority())
+	{
+		MulticastPlaySound(LevelUpSound);
 	}
 }
 
@@ -575,6 +612,11 @@ void AT4CCharacter::HandleDeath(AActor* Killer)
 		return;
 	}
 	bDeadHandled = true;
+
+	if (HasAuthority())
+	{
+		MulticastPlaySound(DeathSound);
+	}
 
 	// Servidor concede XP ao matador (se for outro jogador).
 	if (HasAuthority())

@@ -12,6 +12,7 @@ class UCameraComponent;
 class UStaticMeshComponent;
 class UT4CAttributeSet;
 class UAnimSequenceBase;
+class USoundBase;
 
 /**
  * Pawn jogável de Althea. Câmera em terceira pessoa (action-RPG).
@@ -123,6 +124,12 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = "Combat")
 	TArray<TObjectPtr<UAnimSequenceBase>> AttackAnims;
 
+	// SFX (placeholders sintetizados; trocar por reais depois).
+	UPROPERTY(EditDefaultsOnly, Category = "Audio") TObjectPtr<USoundBase> SwingSound;
+	UPROPERTY(EditDefaultsOnly, Category = "Audio") TObjectPtr<USoundBase> HitSound;
+	UPROPERTY(EditDefaultsOnly, Category = "Audio") TObjectPtr<USoundBase> LevelUpSound;
+	UPROPERTY(EditDefaultsOnly, Category = "Audio") TObjectPtr<USoundBase> DeathSound;
+
 public:
 	/** Tecla F: coleta loot próximo ou interage com o NPC mais próximo. */
 	void Interact();
@@ -151,6 +158,13 @@ public:
 
 	/** Servidor: toca uma animação de ataque (replicada a todos via multicast). */
 	void PlayAttackAnim();
+
+	/** Servidor: toca o som de level-up neste pawn (a todos). */
+	void PlayLevelUpSound();
+
+	/** Toca um som na localização deste ator, em todos os clientes. */
+	UFUNCTION(NetMulticast, Unreliable)
+	void MulticastPlaySound(USoundBase* Sound);
 
 protected:
 	/** Servidor: dispara um projétil para frente, com dano, cor e tamanho. */

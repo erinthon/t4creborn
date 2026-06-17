@@ -201,6 +201,11 @@ void AT4CPlayerState::LevelUp()
 
 	// HP é concedido no level-up conforme END atual (fiel ao T4C).
 	PushStatsToASC(/*bRefill=*/false);
+
+	if (AT4CCharacter* Char = Cast<AT4CCharacter>(GetPawn()))
+	{
+		Char->PlayLevelUpSound();
+	}
 }
 
 void AT4CPlayerState::ServerAllocateStat_Implementation(ET4CAttribute Attribute)

@@ -10,6 +10,7 @@
 class UStaticMeshComponent;
 class UT4CAbilitySystemComponent;
 class UT4CAttributeSet;
+class USoundBase;
 
 /**
  * Inimigo PvE de Althea. Autoritativo no servidor; conduzido por
@@ -35,6 +36,10 @@ public:
 
 	/** IT4CCombatant: servidor reage à morte (XP ao matador, loot, respawn). */
 	virtual void HandleDeath(AActor* Killer) override;
+
+	/** Toca o som de morte do monstro em todos os clientes. */
+	UFUNCTION(NetMulticast, Unreliable)
+	void MulticastDeathSound();
 
 	float GetAttackRange() const { return AttackRange; }
 
@@ -73,6 +78,9 @@ protected:
 
 	UPROPERTY(EditDefaultsOnly, Category = "T4C|Progression")
 	int32 XPReward = 50;
+
+	UPROPERTY(EditDefaultsOnly, Category = "T4C|Audio")
+	TObjectPtr<USoundBase> DeathSound;
 
 private:
 	float LastAttackTime = -100.f;

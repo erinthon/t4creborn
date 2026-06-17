@@ -10,6 +10,8 @@
 #include "Core/T4CVisuals.h"
 #include "AbilitySystemComponent.h"
 #include "AbilitySystemBlueprintLibrary.h"
+#include "Sound/SoundBase.h"
+#include "Kismet/GameplayStatics.h"
 #include "Components/StaticMeshComponent.h"
 #include "Components/CapsuleComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
@@ -52,8 +54,19 @@ AT4CMonster::AT4CMonster()
 
 	AttributeSet = CreateDefaultSubobject<UT4CAttributeSet>(TEXT("AttributeSet"));
 
+	static ConstructorHelpers::FObjectFinder<USoundBase> SndDeath(TEXT("/Game/Audio/sfx_monster_death.sfx_monster_death"));
+	if (SndDeath.Succeeded()) DeathSound = SndDeath.Object;
+
 	AIControllerClass = AT4CMonsterAIController::StaticClass();
 	AutoPossessAI = EAutoPossessAI::PlacedInWorldOrSpawned;
+}
+
+void AT4CMonster::MulticastDeathSound_Implementation()
+{
+	if (DeathSound)
+	{
+		UGameplayStatics::PlaySoundAtLocation(this, DeathSound, GetActorLocation());
+	}
 }
 
 UAbilitySystemComponent* AT4CMonster::GetAbilitySystemComponent() const
@@ -148,6 +161,8 @@ void AT4CMonster::HandleDeath(AActor* Killer)
 		return;
 	}
 	bDeadHandled = true;
+
+	MulticastDeathSound();
 
 	// Concede XP ao jogador que derrotou o monstro.
 	if (AT4CCharacter* KillerChar = Cast<AT4CCharacter>(Killer))
